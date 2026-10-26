@@ -17,7 +17,7 @@ import type { OrderedExcalidrawElement } from '@excalidraw/excalidraw/element/ty
 import { useI18n, type Locale } from '../i18n';
 import { Icon } from './Icon';
 import { Toast } from './Toast';
-import { readDefaultSketchToolColor } from './sketch-colors';
+import { DEFAULT_SKETCH_LIGHT_TOOL_COLOR } from './sketch-colors';
 import {
   emptySketchScene,
   sanitizeExcalidrawAppState,
@@ -481,7 +481,8 @@ function buildInitialData(
     appState: {
       ...sanitizeExcalidrawAppState(scene.appState),
       name: fileName,
-      currentItemStrokeColor: readDefaultSketchToolColor(),
+      // Excalidraw applies its own dark-theme color transform to scene colors.
+      currentItemStrokeColor: DEFAULT_SKETCH_LIGHT_TOOL_COLOR,
       viewBackgroundColor: typeof scene.appState?.viewBackgroundColor === 'string'
         ? scene.appState.viewBackgroundColor
         : '#ffffff',
