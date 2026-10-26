@@ -2,6 +2,9 @@ import { resolve } from 'node:path';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  // Packed Base UI ships TSX source without the producer's tsconfig. Use the
+  // same automatic JSX runtime as Next for workspace and external TSX alike.
+  esbuild: { jsx: 'automatic' },
   resolve: {
     alias: {
       '@excalidraw/excalidraw': resolve(__dirname, 'tests/helpers/excalidraw-mock.tsx'),

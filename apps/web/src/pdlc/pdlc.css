@@ -1,0 +1,36 @@
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+@source '../../node_modules/@pdlc/ui/src';
+
+/* No global Tailwind preflight: retain the upstream editor's own CSS baseline. */
+/* The product keeps its editor layout; Base owns header geometry and theme. */
+.pdlc-studio-shell {
+  display: grid;
+  grid-template-rows: var(--shell-header-height, 60px) minmax(0, 1fr);
+  height: 100dvh;
+  min-width: 0;
+  overflow: hidden;
+}
+.pdlc-studio-content { min-width: 0; min-height: 0; overflow: hidden; }
+.pdlc-studio-content > .workspace-shell,
+.pdlc-studio-content > .app { height: 100%; width: 100%; max-width: 100%; }
+html[data-pdlc] {
+  --bg: var(--color-surface);
+  --bg-app: var(--color-surface);
+  --bg-panel: var(--color-surface-raised);
+  --bg-elevated: var(--color-surface-raised);
+  --bg-subtle: var(--color-surface-raised);
+  --bg-muted: var(--color-border);
+  --border: var(--color-border);
+  --border-soft: var(--color-border);
+  --border-strong: var(--color-text-muted);
+  --text: var(--color-text-primary);
+  --text-strong: var(--color-text-primary);
+  --text-muted: var(--color-text-secondary);
+  --text-soft: var(--color-text-muted);
+  --code-header-bg: var(--color-surface-raised);
+  --code-body-bg: var(--color-surface);
+  --accent: var(--color-accent);
+  --accent-hover: var(--color-accent);
+  --accent-strong: var(--color-text-primary);
+}

@@ -25,6 +25,7 @@ import { checkWhatsNewDocument } from "./check-whats-new-document.ts";
 import { checkWhatsNewPublishWorkflow } from "./check-whats-new-publish-workflow.ts";
 import { collectCssHardcodedColorMatches, cssWideAndSpecialColorKeywords, realNamedColors } from "./style-policy.ts";
 import { checkScriptsLibraryArchitecture } from "./lib/guard/architecture.ts";
+import { pinnedBaseUiSpec } from "./lib/guard/base-ui-package.ts";
 import { runGuardChecks, type GuardCheck, type GuardContext } from "./lib/guard/core.ts";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
@@ -416,10 +417,11 @@ function checkDependencySpecRecord(
   fieldPath: string,
   violations: DependencySpecViolation[],
   stats: DependencySpecStats,
+  baseUiSpec: string | null,
 ): void {
   for (const [name, spec] of Object.entries(record).sort(([left], [right]) => left.localeCompare(right))) {
     if (isRecord(spec)) {
-      checkDependencySpecRecord(spec, filePath, `${fieldPath}.${name}`, violations, stats);
+      checkDependencySpecRecord(spec, filePath, `${fieldPath}.${name}`, violations, stats, baseUiSpec);
       continue;
     }
 
@@ -440,7 +442,8 @@ function checkDependencySpecRecord(
       continue;
     }
 
-    if (isAllowedDependencySpec(spec)) {
+    if (isAllowedDependencySpec(spec) || (name === '@pdlc/ui' && fieldPath === 'dependencies' &&
+      ['apps/daemon/package.json', 'apps/web/package.json'].includes(filePath) && spec === baseUiSpec)) {
       stats.exact += 1;
       continue;
     }
@@ -462,6 +465,7 @@ function checkDependencySpecRecord(
 
 async function checkPackageDependencySpecs(): Promise<boolean> {
   const manifestPaths = await collectSourcePackageManifestPaths();
+  const baseUiSpec = await pinnedBaseUiSpec(repoRoot);
   const violations: DependencySpecViolation[] = [];
   const stats: DependencySpecStats = {
     exact: 0,
@@ -488,7 +492,7 @@ async function checkPackageDependencySpecs(): Promise<boolean> {
         continue;
       }
 
-      checkDependencySpecRecord(value, manifestPath, section, violations, stats);
+      checkDependencySpecRecord(value, manifestPath, section, violations, stats, baseUiSpec);
     }
 
     for (const overridePath of packageManagerOverridePaths) {
@@ -505,7 +509,7 @@ async function checkPackageDependencySpecs(): Promise<boolean> {
         continue;
       }
 
-      checkDependencySpecRecord(value, manifestPath, overridePath, violations, stats);
+      checkDependencySpecRecord(value, manifestPath, overridePath, violations, stats, baseUiSpec);
     }
   }
 

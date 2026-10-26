@@ -23,6 +23,7 @@ import type {
   WorkspaceCollabContext,
 } from '@open-design/contracts';
 import { createPortal } from 'react-dom';
+import type { JSX } from 'react';
 import { inferPluginPreview } from './plugins-home/preview';
 import { PluginScenarioDetail } from './plugin-details/PluginScenarioDetail';
 import { PluginExampleDetail } from './plugin-details/PluginExampleDetail';

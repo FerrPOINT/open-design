@@ -1754,7 +1754,7 @@ export function ChatPane({
    * 它们的依赖和生命周期本来就不一样。effect 不在时这里是空操作。
    */
   const scheduleFollowSyncRef = useRef<() => void>(() => {});
-  const chatRailHighlightTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const chatRailHighlightTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [chatRailHighlightedMessageId, setChatRailHighlightedMessageId] =
     useState<string | null>(null);
   const prevStreamingRef = useRef(streaming);
@@ -6676,7 +6676,7 @@ const UserMessage = memo(UserMessageImpl);
   const attachments = sortChatAttachmentsForDisplay(message.attachments ?? []);
   const commentAttachments = message.commentAttachments ?? [];
   const [copied, setCopied] = useState(false);
-  const copyTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const isDesignSystemWorkspaceRequest = isDesignSystemWorkspacePrompt(message.content);
   /* 设计系统交接会把一整段给 agent 的实现 prompt 写进对话。用户这一侧要看到的
      不是那段 prompt,而是稿子第「设计系统工作区 · 自动创建」格的那张状态卡

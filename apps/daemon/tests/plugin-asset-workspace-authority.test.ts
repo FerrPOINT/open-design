@@ -56,7 +56,7 @@ function context(
   } as WorkspaceCollabContext;
 }
 
-async function fixture() {
+async function fixture(frameAncestorOrigin?: string) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'od-plugin-asset-scope-'));
   roots.push(root);
   const plugins = new Map<string, {
@@ -82,6 +82,7 @@ async function fixture() {
   const app = express();
   registerPluginAssetRoutes(app, {
     db: {} as never,
+    frameAncestorOrigin: frameAncestorOrigin ?? null,
     verifyWorkspaceRequestAuthority: async (req: any) => {
       const workspaceId = req.get('x-od-workspace-id')?.trim();
       const workspaceMemberId = req.get('x-od-workspace-member-id')?.trim();
@@ -133,6 +134,19 @@ async function fixture() {
 }
 
 describe('Plugin preview and asset Workspace authority', () => {
+  it('permits the exact platform ancestor while retaining the plugin sandbox policy', async () => {
+    for (const host of [undefined, 'https://portal.example']) {
+      const baseUrl = await fixture(host);
+      for (const resource of ['preview', 'asset/assets/secret.txt']) {
+        const response = await fetch(`${baseUrl}/api/plugins/same-plugin/${resource}?workspaceId=workspace-a&workspaceMemberId=member-a`);
+        expect(response.status).toBe(200);
+        const policy = response.headers.get('content-security-policy');
+        expect(policy).toContain("connect-src 'none'; frame-ancestors 'self'" + (host ? ` ${host}` : ''));
+        expect(policy).not.toContain('*');
+        expect(policy).toContain("default-src 'none'");
+      }
+    }
+  });
   it('serves A and B copies of the same id and carries exact scope into nested assets', async () => {
     const baseUrl = await fixture();
     const preview = await fetch(

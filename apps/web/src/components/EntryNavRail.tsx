@@ -1,3 +1,4 @@
+import { isPdlcMode } from '../pdlc/config';
 import { CodingPlanUsage } from './CodingPlanUsage';
 import planCardStyles from './PersonalPlanCard.module.css';
 // Team-edition entry navigation rail (Lovart/Manus-style labeled column).
@@ -1070,7 +1071,11 @@ interface EntryTopRightClusterProps {
  * `WorkspaceTopRightAccountCluster`) on the project route — those routes are
  * mutually exclusive.
  */
-export function EntryTopRightCluster({
+export function EntryTopRightCluster(props: EntryTopRightClusterProps) {
+  return isPdlcMode() ? null : <LegacyEntryTopRightCluster {...props} />;
+}
+
+function LegacyEntryTopRightCluster({
   page,
   context,
   billing,
@@ -1889,7 +1894,11 @@ export function EntryTopRightCluster({
 /** Project-view variant. Bound projects pass their route-owned Workspace
  * authority explicitly; an unbound local project deliberately falls back to
  * the shell's ambient account context. */
-export function WorkspaceTopRightAccountCluster({
+export function WorkspaceTopRightAccountCluster(props: Parameters<typeof LegacyWorkspaceTopRightAccountCluster>[0]) {
+  return isPdlcMode() ? null : <LegacyWorkspaceTopRightAccountCluster {...props} />;
+}
+
+function LegacyWorkspaceTopRightAccountCluster({
   onOpenSettings,
   onSignedOut,
   updaterSlot,

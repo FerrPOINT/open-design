@@ -1,3 +1,5 @@
+import { pdlcConfiguration } from './http/pdlc-config.js';
+
 export interface ParsedHostHeader {
   hostname: string;
   host: string;
@@ -13,7 +15,9 @@ export interface RequestWithOriginHeaders {
 }
 
 export function configuredAllowedOrigins(env: NodeJS.ProcessEnv = process.env): string[] {
-  const raw = env.OD_ALLOWED_ORIGINS || '';
+  // The canonical product origin must reach both the global middleware and
+  // route-local guards (app config, providers, imports) behind an HTTPS proxy.
+  const raw = [env.OD_ALLOWED_ORIGINS ?? '', pdlcConfiguration(env)?.publicOrigin ?? ''].filter(Boolean).join(',');
   if (!raw.trim()) return [];
   return raw
     .split(',')

@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
+import type { PdlcPreviewAuthorization } from './http/pdlc-auth.js';
 
 export const DEFAULT_TOOL_TOKEN_TTL_MS = 15 * 60 * 1000;
 export const CHAT_TOOL_TOKEN_TTL_BUFFER_MS = 15 * 60 * 1000;
@@ -83,6 +84,8 @@ export interface ToolTokenGrant {
 }
 
 export interface MintToolTokenOptions {
+  /** Server-only initiating authority; never included in the public tool grant. */
+  authorization?: PdlcPreviewAuthorization | undefined;
   runId: string;
   projectId: string;
   allowedEndpoints?: readonly ToolEndpoint[];
@@ -104,6 +107,7 @@ export type ToolTokenValidationResult =
   | { ok: false; code: ToolTokenErrorCode; message: string };
 
 interface StoredToolTokenGrant extends ToolTokenGrant {
+  authorization?: PdlcPreviewAuthorization;
   tokenHash: string;
   expiresAtMs: number;
   timer: NodeJS.Timeout;
@@ -118,7 +122,8 @@ function createOpaqueToolToken(): string {
 }
 
 function asPublicGrant(stored: StoredToolTokenGrant): ToolTokenGrant {
-  const { tokenHash: _tokenHash, expiresAtMs: _expiresAtMs, timer: _timer, ...grant } = stored;
+  const { tokenHash: _tokenHash, expiresAtMs: _expiresAtMs, timer: _timer,
+    authorization: _authorization, ...grant } = stored;
   return grant;
 }
 
@@ -181,6 +186,7 @@ export class ToolTokenRegistry {
       expiresAt: new Date(expiresAtMs).toISOString(),
       expiresAtMs,
       timer,
+      ...(options.authorization ? { authorization: options.authorization } : {}),
       ...(options.pluginSnapshotId ? { pluginSnapshotId: options.pluginSnapshotId } : {}),
       ...(options.pluginTrust ? { pluginTrust: options.pluginTrust } : {}),
       ...(options.pluginCapabilitiesGranted
@@ -250,6 +256,15 @@ export class ToolTokenRegistry {
     }, ttlMs);
     stored.timer.unref?.();
     return asPublicGrant(stored);
+  }
+
+  /** Returns only an active server-bound authority after the normal scope check. */
+  authorization(
+    token: string | null | undefined,
+    options: { endpoint?: string; operation?: string; nowMs?: number } = {},
+  ): PdlcPreviewAuthorization | null {
+    if (!token || !this.validate(token, options).ok) return null;
+    return this.#byTokenHash.get(tokenHash(token))?.authorization ?? null;
   }
 
   revokeToken(token: string | null | undefined, _reason: ToolTokenRevocationReason = 'manual'): boolean {

@@ -5,7 +5,7 @@
 // Two questions. The score is the metric and costs one tap; the follow-up asks
 // what to fix first and can be skipped. Anything longer was cut deliberately —
 // every extra question is paid for in completion rate on the score itself.
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type JSX } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import type { Variants } from 'motion/react';

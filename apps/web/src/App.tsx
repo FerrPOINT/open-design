@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
+import { usePdlcReadiness } from './pdlc/readiness';
 import { AnimatePresence, motion, MotionConfig } from 'motion/react';
 import { Button } from '@open-design/components';
 import { reportAgentDetectDiagnostics } from './analytics/agent-detect';
@@ -4663,6 +4664,11 @@ function AppInner() {
   // start from two headerless 400 waves plus a scoped retry into one scoped
   // wave. Unbound local projects still mount as soon as their real row lands.
   const activeProject = loadedActiveProject;
+  usePdlcReadiness(
+    projectsLoading || !daemonAppConfigReady || !daemonLive ||
+      (route.kind === 'project' && activeProject === null),
+    projectOpenError,
+  );
   const activeProjectWorkspaceContext = activeProject
     ? projectRouteWorkspaceContext.context
     : null;

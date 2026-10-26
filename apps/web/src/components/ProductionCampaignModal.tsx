@@ -243,7 +243,7 @@ function CampaignModalFrame({
 }: {
 	presented: boolean;
 	label: string;
-	modalRef: RefObject<HTMLDivElement>;
+	modalRef: RefObject<HTMLDivElement | null>;
 	children: ReactNode;
 }) {
 	return (
