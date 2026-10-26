@@ -13,6 +13,10 @@ Merge, установка в общие окружения и production deploym
 production build Base host. Жизненным циклом daemon управляет `tools-dev`.
 Daemon-managed данные следуют [корневому контракту](../AGENTS.md#daemon-data-directory-contract).
 
+После приёмки HTTP gate повторён на финальном candidate: все 16 проверок прошли.
+Собственные daemon/host/peer listeners и временные Auth/PostgreSQL остановлены;
+отсутствие их процессов, контейнеров и listeners проверено. Общие stacks не изменялись.
+
 Auth собран из Base `26e678d4a11d3a9e92b1457c745fd6ef8375ac2e`;
 immutable image ID:
 `sha256:98ab5b036bc6ea4aa1746cc9b5b28a11b1bf5958088b1c65470bda830cb20357`.
