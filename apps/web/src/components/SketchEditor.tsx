@@ -1076,7 +1076,9 @@ function validateSketchEmbeddableUrl(link: string): boolean {
 
 function readExcalidrawTheme(): 'light' | 'dark' {
   if (typeof document === 'undefined') return 'light';
-  return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+  const root = document.documentElement;
+  const theme = root.getAttribute('data-theme');
+  return theme === 'dark' || (theme === 'gray' && root.hasAttribute('data-pdlc')) ? 'dark' : 'light';
 }
 
 function cloneJson<T>(value: unknown, fallback: T): T {

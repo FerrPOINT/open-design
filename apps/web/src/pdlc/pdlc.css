@@ -28,9 +28,17 @@ html[data-pdlc] {
   --text-strong: var(--color-text-primary);
   --text-muted: var(--color-text-secondary);
   --text-soft: var(--color-text-muted);
+  --text-faint: var(--color-text-muted);
+  --bg-fill-tertiary: color-mix(in srgb, var(--color-text-primary) 4%, transparent);
+  --bg-fill-secondary: color-mix(in srgb, var(--color-text-primary) 8%, transparent);
+  --bg-fill: color-mix(in srgb, var(--color-text-primary) 12%, transparent);
+  --glass-regular: var(--color-surface-raised);
   --code-header-bg: var(--color-surface-raised);
   --code-body-bg: var(--color-surface);
   --accent: var(--color-accent);
   --accent-hover: var(--color-accent);
   --accent-strong: var(--color-text-primary);
 }
+html[data-pdlc] .viewer-toolbar { background: var(--bg-panel); }
+html[data-pdlc] .composer-input-editor [contenteditable='true'],
+html[data-pdlc] .composer-input-editor .composer-editable { color: var(--text); }
