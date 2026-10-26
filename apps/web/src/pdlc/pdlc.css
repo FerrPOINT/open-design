@@ -40,5 +40,6 @@ html[data-pdlc] {
   --accent-strong: var(--color-text-primary);
 }
 html[data-pdlc] .viewer-toolbar { background: var(--bg-panel); }
+html[data-pdlc] .entry-main--scroll { --entry-content-surface: var(--color-surface-raised); }
 html[data-pdlc] .composer-input-editor [contenteditable='true'],
 html[data-pdlc] .composer-input-editor .composer-editable { color: var(--text); }
