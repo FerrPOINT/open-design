@@ -234,7 +234,8 @@ function PlatformStudio({ config }: { config: PdlcConfiguration }) {
             <Button variant="ghost" aria-label="Аккаунт PDLC">{phase === 'ready' ? name ?? 'Аккаунт' : 'Аккаунт'}</Button>
           </DropdownMenuTrigger><DropdownMenuContent align="end">
             {phase === 'ready' && <><p>{name}</p><p>{email}</p></>}<ThemeMenuItems />
-            <DropdownMenuItem disabled={ending || phase !== 'ready'} onSelect={() => void logout()}>Выйти</DropdownMenuItem>
+            <DropdownMenuItem disabled={ending || (phase !== 'ready' && phase !== 'error')}
+              onSelect={() => void logout()}>Выйти</DropdownMenuItem>
           </DropdownMenuContent></DropdownMenu>} />
         <div className="pdlc-studio-content">
           {phase === 'ready' && token ? <RequireApplicationAccess application={config.applicationKey}><App /></RequireApplicationAccess>

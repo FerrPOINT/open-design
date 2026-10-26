@@ -112,6 +112,17 @@ describe('PDLC studio entry', () => {
     expect(screen.queryByTestId('studio-editor')).toBeNull();
     expect(beginSso).not.toHaveBeenCalled();
   });
+  it('allows a denied account to end SSO without granting studio access', async () => {
+    sessionStatus = 403;
+    render(<PdlcApp />);
+    await screen.findByText('Нет доступа к OpenDesign.');
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Аккаунт PDLC' }), { button: 0, ctrlKey: false });
+    const logout = await screen.findByRole('menuitem', { name: 'Выйти' });
+    expect(logout.getAttribute('aria-disabled')).not.toBe('true');
+    fireEvent.click(logout);
+    await waitFor(() => expect(endSso).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId('studio-editor')).toBeNull();
+  });
   it('keeps an Auth outage retryable and does not claim a logout', async () => {
     sessionStatus = 503;
     render(<PdlcApp />);
