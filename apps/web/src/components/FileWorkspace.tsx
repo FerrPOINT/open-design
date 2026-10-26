@@ -1622,10 +1622,16 @@ export function FileWorkspace({
   useEffect(() => () => {
     void settleProtectedManualEdits();
   }, [settleProtectedManualEdits]);
+  const hasUnsavedSketches = Object.values(sketches).some((entry) => entry.dirty || !entry.persisted);
+  const settleWorkspaceExit = useCallback(async (): Promise<boolean> => {
+    if (!await settleProtectedManualEdits()) return false;
+    return !Object.values(sketchesRef.current).some((entry) => entry.dirty || !entry.persisted)
+      || window.confirm(t('sketch.closeConfirm'));
+  }, [settleProtectedManualEdits, t]);
   useEffect(() => {
-    if (protectedHtmlViewerFileNames.size === 0) return;
+    if (protectedHtmlViewerFileNames.size === 0 && !hasUnsavedSketches) return;
 
-    const unregisterNavigationGuard = registerNavigationGuard(settleProtectedManualEdits);
+    const unregisterNavigationGuard = registerNavigationGuard(settleWorkspaceExit);
     const warnBeforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = '';
@@ -1635,7 +1641,7 @@ export function FileWorkspace({
       unregisterNavigationGuard();
       window.removeEventListener('beforeunload', warnBeforeUnload);
     };
-  }, [protectedHtmlViewerFileNames.size, settleProtectedManualEdits]);
+  }, [protectedHtmlViewerFileNames.size, hasUnsavedSketches, settleWorkspaceExit]);
 
   function afterActiveManualEditSettles(action: () => void) {
     const sourceTab = activeTabRef.current;
