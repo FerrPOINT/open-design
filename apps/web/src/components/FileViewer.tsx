@@ -13028,7 +13028,10 @@ function HtmlViewer({
   const requestManualEditSafeExitRef = useRef<() => Promise<boolean>>(async () => true);
   requestManualEditSafeExitRef.current = () => {
     if (manualEditSafeExitInFlightRef.current) return manualEditSafeExitInFlightRef.current;
-    const pending = exitManualEditModeAfterFlushRef.current().finally(() => {
+    const pending = (async () => {
+      if (manualEditDraftDirty && !await saveManualEditPanelDraft()) return false;
+      return exitManualEditModeAfterFlushRef.current();
+    })().finally(() => {
       if (manualEditSafeExitInFlightRef.current === pending) {
         manualEditSafeExitInFlightRef.current = null;
       }
@@ -13169,7 +13172,7 @@ function HtmlViewer({
     return null;
   }
 
-  async function saveManualEditPanelDraft() {
+  async function saveManualEditPanelDraft(): Promise<boolean> {
     const selectedTarget = selectedManualEditTarget;
     const contentPatchBeforeText = selectedTarget
       ? manualEditContentPatchForDraft(selectedTarget, manualEditDraft, sourceRef.current ?? '')
@@ -13177,19 +13180,20 @@ function HtmlViewer({
     const panelContentChanged = contentPatchBeforeText !== null;
     const textCommitSequenceBeforeSave = manualEditTextCommitSequenceRef.current;
     const hadTextCommitInFlight = Boolean(manualEditTextCommitInFlightRef.current);
-    if (!(await settlePendingManualEditCommit(!panelContentChanged))) return;
+    if (!(await settlePendingManualEditCommit(!panelContentChanged))) return false;
     const inlineTextCommitted =
       hadTextCommitInFlight ||
       manualEditTextCommitSequenceRef.current !== textCommitSequenceBeforeSave;
     if (selectedTarget && (panelContentChanged || !inlineTextCommitted)) {
       const base = sourceRef.current ?? '';
       const contentPatch = manualEditContentPatchForDraft(selectedTarget, manualEditDraft, base);
-      if (contentPatch && !(await applyManualEdit(contentPatch.patch, contentPatch.label))) return;
+      if (contentPatch && !(await applyManualEdit(contentPatch.patch, contentPatch.label))) return false;
     }
     const ok = await flushManualEditStyleSave();
-    if (!ok) return;
-    if (selectedManualEditTarget) void clearManualEditTargetSelection();
+    if (!ok) return false;
+    if (selectedManualEditTarget) await clearManualEditTargetSelection();
     else setManualEditPageStylesOpen(false);
+    return true;
   }
 
   function syncRetainedManualEditDocument(savedSource: string, patch: ManualEditPatch): void {

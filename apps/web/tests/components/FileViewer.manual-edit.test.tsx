@@ -563,6 +563,35 @@ describe('FileViewer manual edit regressions', () => {
     });
   });
 
+  it.each([{ status: 200, allowed: true }, { status: 503, allowed: false }])(
+    'settles inspector drafts before safe exit (write status $status)', async ({ status, allowed }) => {
+      const source = '<!doctype html><html><body><main data-od-id="hero">Hero</main></body></html>';
+      const writes: string[] = [];
+      vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input);
+        if (url.includes('/api/projects/project-1/files') && init?.method === 'POST') {
+          writes.push(String(init.body));
+          return new Response(JSON.stringify(status === 200 ? { file: htmlPreviewFile() } : { error: 'save failed' }),
+            { status, headers: { 'Content-Type': 'application/json' } });
+        }
+        return new Response(source, { status: 200, headers: { 'Content-Type': 'text/html' } });
+      }));
+      const exit = { current: null as (() => Promise<boolean>) | null };
+      render(<FileViewer projectId="project-1" projectKind="prototype" file={htmlPreviewFile()} liveHtml={source}
+        onManualEditExitHandlerChange={(_name, handler) => { exit.current = handler; }} />);
+      await enterManualEditMode();
+      await selectManualEditTarget();
+      fireEvent.change(screen.getByRole('textbox', { name: /^Text$/ }), { target: { value: 'Inspector draft' } });
+      let result: boolean | undefined;
+      await act(async () => { result = await exit.current?.(); });
+      expect(result).toBe(allowed);
+      expect(writes).toHaveLength(1);
+      expect(writes[0]).toContain('Inspector draft');
+      if (!allowed) expect((screen.getByRole('textbox', { name: /^Text$/ }) as HTMLTextAreaElement).value)
+        .toBe('Inspector draft');
+    },
+  );
+
   it('holds a dropped drag as a pending style and only persists it on save', async () => {
     const source = '<!doctype html><html><body><main data-od-id="hero">Hero</main></body></html>';
     const savedBodies: string[] = [];
