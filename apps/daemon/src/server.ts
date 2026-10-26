@@ -8315,7 +8315,7 @@ export async function startServer({
     OD_BIN,
   };
 
-  app.get('/api/health', async (_req, res) => {
+  app.get(['/api/health', '/health'], async (_req, res) => {
     const versionInfo = await readCurrentAppVersionInfo();
     const {
       pending,

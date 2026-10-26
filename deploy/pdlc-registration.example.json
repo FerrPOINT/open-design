@@ -20,7 +20,7 @@
     "url": "https://studio.example.invalid",
     "ui_url": "https://studio.example.invalid",
     "health": "unknown",
-    "capabilities": [],
+    "capabilities": ["health.read", "ui.render"],
     "contract_version": "1.0"
   },
   "opendesign_environment": {

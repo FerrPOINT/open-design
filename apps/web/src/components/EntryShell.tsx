@@ -34,6 +34,7 @@ import {
 } from '@open-design/contracts';
 import type { OpenDesignHostProjectImportSuccess } from '@open-design/host';
 import { useAnalytics } from '../analytics/provider';
+import { isPdlcMode } from '../pdlc/config';
 import {
   trackHomeNavClick,
   trackOnboardingClick,
@@ -2325,6 +2326,7 @@ function OnboardingView({
   onFinish: () => void;
 }) {
   const t = useT();
+  const platformStudio = isPdlcMode();
   const analytics = useAnalytics();
   const [step, setStep] = useState(0);
   const [runtime, setRuntime] = useState<'amr' | 'local' | 'byok' | null>(null);
@@ -3695,10 +3697,10 @@ function OnboardingView({
 
   const primaryActionLabel = t('settings.onboardingContinue');
 
-  // Cloud remains the primary identity path. Local CLI and BYOK are independent
-  // direct setup paths; authenticated users keep the full source chooser.
+  // Standalone Cloud remains the primary identity path. Platform admission is
+  // already complete; its studio offers local CLI/BYOK without a second login.
   if (step === 0) {
-    const cloudBusy = amrLoginBusy;
+    const cloudBusy = !platformStudio && amrLoginBusy;
     const amrStatusResolving = !amrStatusResolved;
     return (
       <section
@@ -3709,7 +3711,7 @@ function OnboardingView({
           <div className="onboarding-cloud__center">
             <h1 className="onboarding-cloud__title">{t('settings.onboardingCloudTitle')}</h1>
             <p className="onboarding-cloud__body">{t('settings.onboardingCloudBody')}</p>
-            <div className={onboardingWelcomeStyles.signInAction}>
+            {!platformStudio && <div className={onboardingWelcomeStyles.signInAction}>
               {!amrSignedIn && !amrStatusResolving && !cloudBusy ? (
                 <span className={onboardingWelcomeStyles.creditCorner}>
                   <span
@@ -3761,8 +3763,8 @@ function OnboardingView({
                         : t('settings.onboardingCloudSignIn')}
                 </span>
               </button>
-            </div>
-            {amrLoginError ? (
+            </div>}
+            {!platformStudio && amrLoginError ? (
               <span className="onboarding-cloud__error" role="alert">
                 {amrLoginError}
               </span>
@@ -3780,9 +3782,9 @@ function OnboardingView({
                 aria-hidden={cloudBusy ? true : undefined}
               >
                 <div className={onboardingWelcomeStyles.alternatives}>
-                  <div className={onboardingWelcomeStyles.divider}>
+                  {!platformStudio && <div className={onboardingWelcomeStyles.divider}>
                     {t('settings.onboardingOwnAi')}
-                  </div>
+                  </div>}
                   <div className={`onboarding-cloud__alts ${onboardingWelcomeStyles.options}`}>
                     <Button
                       variant="subtle"

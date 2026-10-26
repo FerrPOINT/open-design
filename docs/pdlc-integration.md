@@ -51,7 +51,7 @@ Frontend получает только публичную конфигураци
 | Central Auth | Добавить точный client ID и `OD_PDLC_PUBLIC_ORIGIN` + `/sso/callback` в `AUTH_OIDC_CLIENTS_JSON`, сохранив существующие clients |
 | Central Auth | Добавить `{ "key": "open-design", "label": "OpenDesign" }` в `AUTH_ADDITIONAL_TOKEN_SERVICES_JSON`, сохранив существующий каталог |
 | Central Auth / Admin | При включённом application access предоставить нужным пользователям доступ `open-design` штатным управлением; роль из JWT не заменяет свежий proof |
-| Admin | Зарегистрировать `open-design` в runtime catalog с проверенным API URL и собственным `ui_url`; каталог не содержит credentials |
+| Admin | Создать и одобрить declaration `open-design` с `health.read`, `ui.render`, проверенным integration URL и `public_ui_url`; каталог не содержит credentials |
 | Base host | Добавить service key `open-design`, собственный origin и свободный публичный path в существующую topology configuration |
 | OpenDesign | Задать пять runtime-переменных выше; для полного переключения указать host и catalog выбранного окружения |
 
@@ -61,6 +61,9 @@ origins, проверить свободный path и объединить за
 `runtime_catalog_service` — ожидаемая публичная проекция Admin; её регистрация
 выполняется штатным механизмом Admin, а не записью JSON в обход владельца.
 Пример не заменяет release manifest и не применяется к работающему стеку.
+`ui.render` нужен для появления `ui_url` в каталоге Admin. `health.read`
+использует его фиксированный `GET /health`; daemon публикует этот probe тем
+же обработчиком, что и прежний `/api/health`, без SPA fallback.
 
 Регистрация метаданных в каталоге Auth не подтверждает поддержку PAT самим
 OpenDesign: этот режим принимает браузерный JWT с проверенным SID. Machine
@@ -101,10 +104,15 @@ Plugin preview/assets допускают точный host origin в `frame-ance
 перезагружает документ, чтобы отбросить module caches upstream.
 
 В платформенном режиме process-wide Cloud identity не выдаётся за текущего
-пользователя: `/api/workspace/context` возвращает `context: null`, Cloud workspace,
+пользователя: `/api/workspace/context` возвращает `context: null`, directory —
+пустой список без active Workspace. Это отсутствие Cloud identity, а не отказ
+платформенного входа; локальные deep links не уходят обратно в onboarding.
+Cloud workspace mutations,
 wallet/login и AMR endpoints отвечают явным отказом. Локальные CLI и BYOK остаются
 предметными настройками студии. Подключение личного Cloud требует отдельного
 серверного identity binding; текущая интеграция его не имитирует.
+Платформенный onboarding показывает Local CLI/BYOK без повторного Cloud login
+и предложений Cloud credits. Standalone onboarding сохраняется.
 
 ## Проверки разработчика
 

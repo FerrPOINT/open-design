@@ -173,6 +173,7 @@ describe('PDLC request boundary', () => {
   it('keeps the process-wide Cloud identity out of the platform workspace context', async () => {
     const headers = { Authorization: 'Bearer alice' };
     expect(await (await fetch(origin + '/api/workspace/context', { headers })).json()).toEqual({ context: null });
+    expect(await (await fetch(origin + '/api/workspace/directory', { headers })).json()).toEqual({ items: [], activeWorkspaceId: null });
     expect((await fetch(origin + '/api/integrations/vela/status', { headers })).status).toBe(403);
     expect((await fetch(origin + '/api/workspace/projects/team', { headers })).status).toBe(403);
     expect((await fetch(origin + '/api/projects', { headers })).status).toBe(200);

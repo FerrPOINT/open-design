@@ -7,7 +7,7 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 import {
   ApplicationAccessError, loadApplicationAccess, permitsApplication,
 } from '@pdlc/ui/application-access';
-import type { PdlcConfiguration, PdlcIdentity } from '@open-design/contracts';
+import type { PdlcConfiguration, PdlcIdentity, WorkspaceDirectoryResponse } from '@open-design/contracts';
 
 export interface PdlcPrincipal {
   identity: PdlcIdentity;
@@ -279,6 +279,11 @@ export function installPdlcAuth(
         // Local studio mode has no browser-bound Vela principal. Returning the
         // daemon's process-wide Cloud account here would misidentify every user.
         return res.json({ context: null });
+      }
+      if (req.path === '/api/workspace/directory' && req.method === 'GET') {
+        // Cloud identity is absent, not rejected: a 403 here would make the
+        // existing shell redirect every local project back to Cloud onboarding.
+        return res.json({ items: [], activeWorkspaceId: null } satisfies WorkspaceDirectoryResponse);
       }
       if (/^\/api\/(?:workspace(?:\/|$)|integrations\/vela(?:\/|$)|amr(?:\/|$))/.test(req.path)) {
         return res.status(403).json({ error: { code: 'PDLC_CLOUD_IDENTITY_REQUIRED',
