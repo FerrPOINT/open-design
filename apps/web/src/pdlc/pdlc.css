@@ -28,6 +28,9 @@ html[data-pdlc] {
   --border-strong: var(--color-text-muted);
   --text: var(--color-text-primary);
   --text-strong: var(--color-text-primary);
+  --selected: var(--color-text-primary);
+  --select-ink: var(--color-text-primary);
+  --selected-soft: color-mix(in srgb, var(--color-text-primary) 12%, transparent);
   --text-muted: var(--color-text-secondary);
   --text-soft: var(--color-text-muted);
   --text-faint: var(--color-text-muted);

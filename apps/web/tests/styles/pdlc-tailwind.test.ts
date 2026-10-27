@@ -18,5 +18,7 @@ it('compiles the installed Base palette in the same pipeline as its utilities wi
   expect(declarations.get('.bg-surface')?.['background-color']).toBe('var(--color-surface)');
   expect(declarations.get('.text-text-primary')?.color).toBe('var(--color-text-primary)');
   expect(declarations.get('.bg-danger')?.['background-color']).toBe('var(--color-danger)');
+  expect(declarations.get('html[data-pdlc]')?.['--selected']).toBe('var(--color-text-primary)');
+  expect(declarations.get('html[data-pdlc]')?.['--select-ink']).toBe('var(--color-text-primary)');
   expect(globalBoxReset).toBe(false);
 }, 30000);
