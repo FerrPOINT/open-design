@@ -111,7 +111,7 @@ it('expires a lease while Auth is pending and cannot resurrect it with a late pr
   let finish!: (value: PdlcPrincipal) => void;
   const authorize = vi.fn(() => new Promise<PdlcPrincipal>(resolve => { finish = resolve; }));
   const revoked = vi.fn();
-  const stop = watchPdlcAuthorization({ key: 'slow-owner', authorize }, revoked, principal());
+  const stop = watchPdlcAuthorization({ key: 'slow-owner', authorize, initial: principal() }, revoked);
   await vi.waitFor(() => expect(authorize).toHaveBeenCalledOnce(), { interval: 1 });
   expect(revoked).not.toHaveBeenCalled();
   await vi.waitFor(() => expect(revoked).toHaveBeenCalledOnce(), { interval: 1 });

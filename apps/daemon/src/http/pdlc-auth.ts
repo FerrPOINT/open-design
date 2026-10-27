@@ -22,6 +22,7 @@ export type PdlcVerifier = (token: string) => Promise<PdlcPrincipal>;
 export interface PdlcPreviewAuthorization {
   readonly key: string;
   readonly authorize: () => Promise<PdlcPrincipal>;
+  readonly initial?: PdlcPrincipal;
 }
 
 /** A background run cannot retain authority after its initiating proof expires. */
@@ -46,7 +47,8 @@ export function watchPdlcAuthorization(authority: PdlcPreviewAuthorization, revo
     try { accept(await authority.authorize()); }
     catch { deny(); }
   };
-  if (initial) accept(initial); else void check();
+  const admitted = initial ?? authority.initial;
+  if (admitted) accept(admitted); else void check();
   return dispose;
 }
 const requestAuthorization = new AsyncLocalStorage<PdlcPreviewAuthorization>();
@@ -372,8 +374,9 @@ export function installPdlcAuth(
         route: typeof req.route?.path === 'string' ? req.route.path : '/:protected',
         status: res.statusCode, durationMs: Math.round(performance.now() - startedAt) })));
       res.locals.pdlc = value;
-      res.locals.pdlcPreview = delegated ?? {
-        key: key ?? createHash('sha256').update(token!).digest('hex'), authorize,
+      res.locals.pdlcPreview = {
+        ...(delegated ?? { key: key ?? createHash('sha256').update(token!).digest('hex'), authorize }),
+        initial: value,
       } satisfies PdlcPreviewAuthorization;
       // Upstream Cloud's process-wide Vela credential is not the browser's
       // platform identity. Do not accept routing claims as Cloud membership.
