@@ -1,9 +1,12 @@
-# Проверка интеграции PDLC
+# Историческая проверка интеграции PDLC в QA-контуре
 
 Дата: 2026-10-27. Source delivery:
 [OpenDesign PR #1](https://github.com/FerrPOINT/open-design/pull/1),
 [Base PR #353](https://github.com/FerrPOINT/services-base/pull/353).
-Merge, установка в общие окружения и production deployment не выполнялись.
+Ниже зафиксирован отдельный QA-контур до штатной установки. Его результаты
+не описывают текущий runtime. Текущее состояние —
+[приёмка установленного OpenDesign](pdlc-installed-acceptance.md).
+Production deployment в этот QA gate не входил.
 
 ## Контур и границы доказательств
 

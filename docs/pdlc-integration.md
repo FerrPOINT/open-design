@@ -144,7 +144,8 @@ diagnostics. Canvas/диалоги проверяются отдельно на 
 Первоначальная интеграция — [PR #1](https://github.com/FerrPOINT/open-design/pull/1),
 текущая доработка — [PR #2](https://github.com/FerrPOINT/open-design/pull/2).
 [Исторический протокол](pdlc-acceptance.md) относится к отдельному QA-контуру.
-Приёмка установленной студии фиксируется отдельно; source PR не заменяет её.
+[Приёмка установленной студии](pdlc-installed-acceptance.md) фиксируется отдельно;
+source PR не заменяет её.
 
 ## Авторизованный CLI и MCP
 
@@ -211,4 +212,4 @@ image ID, отдельный постоянный том, существующу
 и не перезаписываются.
 Для несовместимой миграции требуется отдельное восстановление в новый том.
 Source checks, image build, установка и пользовательская приёмка фиксируются
-отдельно в [acceptance](pdlc-acceptance.md).
+отдельно в [installed acceptance](pdlc-installed-acceptance.md).
