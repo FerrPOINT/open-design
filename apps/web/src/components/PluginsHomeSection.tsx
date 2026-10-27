@@ -14,7 +14,7 @@
 // override live in `./plugins-home/usePluginFacets.ts`. This file
 // owns layout only.
 
-import { Button, Input } from '../pdlc/primitives';
+import { Button, Input } from '@open-design/components';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type {
   InstalledPluginRecord,

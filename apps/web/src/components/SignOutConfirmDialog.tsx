@@ -2,11 +2,10 @@ import { useId } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Dialog,
-  NativeButton,
   DialogDescription,
   DialogFooter,
   DialogTitle,
-} from '../pdlc/primitives';
+} from '@open-design/components';
 import { useT } from '../i18n';
 
 interface Props {
@@ -39,24 +38,23 @@ export function SignOutConfirmDialog({ busy = false, onCancel, onConfirm }: Prop
       <DialogTitle id={titleId}>{t('signOut.confirmTitle')}</DialogTitle>
       <DialogDescription>{t('signOut.confirmMessage')}</DialogDescription>
       <DialogFooter className="row">
-        <NativeButton
+        <button
           type="button"
           onClick={onCancel}
           disabled={busy}
           data-testid="sign-out-confirm-cancel"
         >
           {t('common.cancel')}
-        </NativeButton>
-        <NativeButton
+        </button>
+        <button
           type="button"
           className="primary"
-          variant="default"
           onClick={onConfirm}
           disabled={busy}
           data-testid="sign-out-confirm-accept"
         >
           {t('signOut.confirmAction')}
-        </NativeButton>
+        </button>
       </DialogFooter>
     </Dialog>
   );

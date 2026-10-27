@@ -8,7 +8,7 @@
 //   - PUT  /api/memory/user_profile  → body assembled as `- <Label>: <value>`
 //     lines; the daemon renders that as a key/value block in the prompt.
 import { useCallback, useEffect, useState } from 'react';
-import { Button } from '../pdlc/primitives';
+import { Button } from '@open-design/components';
 import { PROFILE_MEMORY_ID } from '@open-design/contracts';
 import type { MemoryEntry } from '@open-design/contracts';
 import { Icon } from './Icon';

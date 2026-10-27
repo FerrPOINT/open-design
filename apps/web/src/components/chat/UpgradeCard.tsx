@@ -46,7 +46,7 @@
  * 差别全在按下去之后落在哪个面上。
  */
 import type { ReactElement } from 'react';
-import { Button } from '../../pdlc/primitives';
+import { Button } from '@open-design/components';
 import { useT } from '../../i18n';
 import styles from './UpgradeCard.module.css';
 

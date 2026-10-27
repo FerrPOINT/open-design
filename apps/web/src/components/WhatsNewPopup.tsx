@@ -1,7 +1,7 @@
 import { createPortal } from 'react-dom';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { Button, Dialog } from '../pdlc/primitives';
+import { Button, Dialog } from '@open-design/components';
 import { useI18n } from '../i18n';
 import { fetchWhatsNew, openExternalUrl } from '../providers/registry';
 import {

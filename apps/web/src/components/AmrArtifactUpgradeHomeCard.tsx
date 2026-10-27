@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { Button, VisuallyHidden } from '../pdlc/primitives';
+import { Button, VisuallyHidden } from '@open-design/components';
 import { useAnalytics } from '../analytics/provider';
 import { getResolvedDeviceId } from '../analytics/client';
 import {

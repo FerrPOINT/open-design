@@ -17,7 +17,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Dialog, DialogDescription, DialogFooter, DialogTitle } from '../pdlc/primitives';
+import { Dialog, DialogDescription, DialogFooter, DialogTitle } from '@open-design/components';
 
 const MOVE_CONFIRM_SKIP_KEY = 'od.projects.moveConfirmSkip';
 import { useT } from '../i18n';

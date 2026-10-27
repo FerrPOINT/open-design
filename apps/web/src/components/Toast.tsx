@@ -15,7 +15,6 @@ import { createPortal } from 'react-dom';
 
 import { Icon } from './Icon';
 import { useT } from '../i18n';
-import { PlatformToast } from '../pdlc/toast';
 
 export interface ToastProps {
   message: string;
@@ -63,12 +62,7 @@ const TONE_ICON: Record<
   loading: 'spinner',
 };
 
-export function Toast(props: ToastProps) {
-  return typeof window !== 'undefined' && window.__OD_PDLC_CONFIG__
-    ? <PlatformToast {...props} /> : <StandaloneToast {...props} />;
-}
-
-function StandaloneToast({
+export function Toast({
   message,
   className,
   details,

@@ -6,7 +6,7 @@ import {
   DialogDescription,
   DialogFooter,
   DialogTitle,
-} from '../pdlc/primitives';
+} from '@open-design/components';
 
 import { useT } from '../i18n';
 import { AgentIcon } from './AgentIcon';

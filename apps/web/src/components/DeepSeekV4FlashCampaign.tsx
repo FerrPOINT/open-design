@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Button, Dialog } from '../pdlc/primitives';
+import { Button, Dialog } from '@open-design/components';
 import {
   DEEPSEEK_V4_FLASH_CAMPAIGN as campaign,
   formatDeepSeekV4FlashCampaignCountdown,

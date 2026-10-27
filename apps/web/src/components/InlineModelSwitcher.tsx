@@ -19,7 +19,7 @@ import {
   type SetStateAction,
 } from 'react';
 import type { AmrWalletSnapshot } from '@open-design/contracts';
-import { VisuallyHidden } from '../pdlc/primitives';
+import { VisuallyHidden } from '@open-design/components';
 import { useT } from '../i18n';
 import {
   agentIdToTracking,

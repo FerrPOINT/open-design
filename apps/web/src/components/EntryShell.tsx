@@ -141,7 +141,7 @@ import {
 import type { OnboardingEntry } from '../onboarding/onboarding-entry';
 import type { PluginUseAction } from './plugins-home/useActions';
 import { Icon } from './Icon';
-import { Button } from '../pdlc/primitives';
+import { Button } from '@open-design/components';
 import styles from './EntryShell.module.css';
 import {
   defaultAgentModelId,

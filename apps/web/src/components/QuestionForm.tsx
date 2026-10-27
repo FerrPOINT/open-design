@@ -14,7 +14,7 @@ import type {
   PointerEvent as ReactPointerEvent,
   ReactNode,
 } from 'react';
-import { Button } from '../pdlc/primitives';
+import { Button } from '@open-design/components';
 import { tForLanguageTag, useT } from '../i18n';
 import type { DirectionCard, FormOption, QuestionForm } from '../artifacts/question-form';
 import {

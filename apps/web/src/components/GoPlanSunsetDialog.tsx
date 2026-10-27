@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Button, Dialog } from '../pdlc/primitives';
+import { Button, Dialog } from '@open-design/components';
 
 import { attributedAmrUrl, recordAmrEntry } from '../analytics/amr-attribution';
 import {

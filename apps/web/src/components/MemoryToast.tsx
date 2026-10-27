@@ -15,7 +15,6 @@ import type {
 } from '@open-design/contracts';
 import { useT } from '../i18n';
 import { toastSlideUp } from '../motion';
-import { PlatformToast } from '../pdlc/toast';
 
 interface ActiveToast {
   key: number;
@@ -168,7 +167,6 @@ export function MemoryToast({
 
   useEffect(() => {
     if (!toast) return;
-    if (window.__OD_PDLC_CONFIG__) return;
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(() => setToast(null), VISIBLE_MS);
     return () => {
@@ -185,8 +183,6 @@ export function MemoryToast({
         : `(${toast.count})`
     : '';
   const clickHint = toast ? t('settings.memoryToastClickHint') : '';
-  if (window.__OD_PDLC_CONFIG__) return toast ? <PlatformToast message={label} details={detail}
-    actionLabel={clickHint} onAction={onOpenMemory} ttlMs={VISIBLE_MS} onDismiss={() => setToast(null)} /> : null;
 
   const pillStyle: CSSProperties = {
     position: 'fixed',

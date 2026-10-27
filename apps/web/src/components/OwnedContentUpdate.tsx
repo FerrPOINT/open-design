@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from 'react';
 import type { OwnedProjectContentUpdate, OwnedProjectContentUpdateRequest } from '@open-design/contracts';
-import { Button, Dialog, DialogDescription, DialogFooter, DialogTitle } from '../pdlc/primitives';
+import { Button, Dialog, DialogDescription, DialogFooter, DialogTitle } from '@open-design/components';
 import { useT } from '../i18n';
 import styles from './OwnedContentUpdate.module.css';
 

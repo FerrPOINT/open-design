@@ -17,7 +17,7 @@ import {
   type WorkspaceCollabContext,
   type WorkspaceInviteRole,
 } from '@open-design/contracts';
-import { Button } from '../pdlc/primitives';
+import { Button } from '@open-design/components';
 import { Icon } from './Icon';
 import { useI18n } from '../i18n';
 import { workspaceInviteErrorMessageKey } from '../collab/invite-error-copy';

@@ -13,7 +13,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Button } from '../pdlc/primitives';
+import { Button } from '@open-design/components';
 import { useAnalytics } from '../analytics/provider';
 import {
   trackIntegrationsMcpTabClick,

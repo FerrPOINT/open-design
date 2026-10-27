@@ -9,7 +9,7 @@ import { useCallback, useEffect, useRef, useState, type JSX } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import type { Variants } from 'motion/react';
-import { Button } from '../pdlc/primitives';
+import { Button } from '@open-design/components';
 import { useT } from '../i18n';
 import styles from './ExperienceSurvey.module.css';
 import {

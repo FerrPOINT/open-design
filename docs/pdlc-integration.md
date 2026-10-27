@@ -30,6 +30,7 @@ upstream sandbox mode: перед установкой оператор опре
 | `OD_PDLC_CATALOG_URL` | Необязательный публичный runtime catalog Admin |
 | `OD_PDLC_BRANDING_URL` | Необязательный published runtime branding Admin |
 | `OD_PDLC_AUTH_INTERNAL_ORIGIN` | Только сервер: private transport Central Auth; публичный issuer неизменен |
+| `OD_PDLC_TRACKER_URL` | Только сервер: явный origin Task Tracker для каталога проектов текущего пользователя |
 
 HTTPS обязателен, кроме loopback для локальной проверки. Частичная конфигурация
 отклоняется при старте; отсутствие или пустые значения всех полей сохраняют
@@ -180,8 +181,19 @@ owner proof. Авторизация пересматривается на каж
 `PlatformProvider` получает published branding Admin. Отсутствие опубликованной
 ревизии сохраняет штатный Base fallback. Выбранная тема применяется существующим
 prepaint-механизмом до React. Язык шапки следует языку OpenDesign, с fallback
-Base для остальных локалей. Общие controls используют публичные Base primitives;
-предметный canvas/preview сохраняется. Standalone использует прежние controls.
+Base для остальных локалей. По уточнению пользователя от 2026-10-27 интеграция
+ограничена палитрой, переключением приложений, общей авторизацией и выбором
+проекта Task Tracker в верхней панели. Кнопки, поля, селекты, диалоги, уведомления,
+настройки и предметная компоновка остаются исходными OpenDesign в обоих режимах.
+Массовая замена продуктовых controls на Base отменена.
+
+Каталог проектов поступает только из `GET Task Tracker /api/v1/projects` через
+защищённый same-origin `GET /api/pdlc/projects`. Daemon передаёт browser bearer
+текущего пользователя по явному installation transport, без service credential,
+перенаправлений и собственного каталога. Tracker применяет свои права. Ошибка
+или пустой каталог не подменяется проектами студии. Выбор хранится в текущей
+вкладке отдельно для subject; это рабочий контекст, не grant и не изменение
+хранилища файлов OpenDesign. Legacy Tracker v1 не объявляется ProjectAccessV2.
 
 ## Поставка и восстановление
 

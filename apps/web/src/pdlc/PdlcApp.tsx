@@ -16,7 +16,7 @@ import { pdlcLocales } from '@pdlc/ui/i18n';
 import {
   Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
   ErrorState, LoadingState, PlatformHeader, PlatformLogin, PlatformMark,
-  PlatformServicesProvider, ThemeMenuItems, Toaster,
+  PlatformServicesProvider, ThemeMenuItems,
 } from '@pdlc/ui/ui';
 import {
   capturePlatformReturn, connectPlatformProduct, finishPlatformLogin, getPlatformProduct,
@@ -25,6 +25,7 @@ import type { PdlcConfiguration, PdlcIdentity, PdlcSessionResponse } from '@open
 import { App } from '../App';
 import { confirmProductLeave, navigatePath, useRoute } from '../router';
 import { useI18n } from '../i18n';
+import { TrackerProjectPicker } from './TrackerProjectPicker';
 
 const boundaryKey = 'open-design:pdlc-session-boundary';
 const labels = createInstance();
@@ -80,7 +81,6 @@ export function PdlcApp() {
   if (configuration === null) return <App />;
   return <I18nextProvider i18n={labels}><ThemeProvider>
     <PlatformProvider configUrl={configuration?.brandingUrl ?? null} serviceName="OpenDesign">
-    <Toaster />
     {error ? <ErrorState message="Не удалось загрузить конфигурацию OpenDesign." onRetry={load} />
       : configuration === undefined ? <LoadingState /> : <PlatformStudio config={configuration} />}
     </PlatformProvider>
@@ -239,6 +239,8 @@ function PlatformStudio({ config }: { config: PdlcConfiguration }) {
       <div className="pdlc-studio-shell" data-testid="pdlc-opendesign">
         <PlatformHeader currentServiceKey={config.applicationKey}
           leading={<PlatformMark withName size="sm" />}
+          context={phase === 'ready' && authenticated
+            ? <TrackerProjectPicker key={authenticated.identity.subject} subject={authenticated.identity.subject} /> : undefined}
           actions={<DropdownMenu><DropdownMenuTrigger asChild>
             <Button variant="ghost" aria-label={accountLabel}>{phase === 'ready' ? name ?? accountText : accountText}</Button>
           </DropdownMenuTrigger><DropdownMenuContent align="end">

@@ -13,7 +13,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from 'react-dom';
-import { Button } from '../pdlc/primitives';
+import { Button } from '@open-design/components';
 import { ThinkingOrb } from './composer/ThinkingOrb';
 import { useI18n } from '../i18n';
 import { localizePluginDescription, localizePluginTitle } from './plugins-home/localization';

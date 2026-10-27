@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { VisuallyHidden } from '../pdlc/primitives';
+import { VisuallyHidden } from '@open-design/components';
 import { Icon } from './Icon';
 import { useI18n } from '../i18n';
 import {

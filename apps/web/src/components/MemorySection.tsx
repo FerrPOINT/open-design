@@ -7,7 +7,7 @@ import {
   type CSSProperties,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { Button } from '../pdlc/primitives';
+import { Button } from '@open-design/components';
 import { Icon, type IconName } from './Icon';
 import { ConnectorLogo, useResolvedTheme } from './ConnectorLogo';
 import { useT } from '../i18n';

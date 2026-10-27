@@ -10,7 +10,7 @@ import {
   type SetStateAction,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { Dialog } from '../pdlc/primitives';
+import { Dialog } from '@open-design/components';
 import {
   PLUGIN_SHARE_ACTION_PLUGIN_IDS,
   resolveLocalizedText,

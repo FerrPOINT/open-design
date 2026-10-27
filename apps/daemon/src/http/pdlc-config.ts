@@ -19,7 +19,7 @@ export function pdlcConfiguration(
   const names = [
     'OD_PDLC_AUTH_ISSUER', 'OD_PDLC_CLIENT_ID', 'OD_PDLC_PUBLIC_ORIGIN',
     'OD_PDLC_HOST_ORIGIN', 'OD_PDLC_CATALOG_URL', 'OD_PDLC_BRANDING_URL',
-    'OD_PDLC_AUTH_INTERNAL_ORIGIN',
+    'OD_PDLC_AUTH_INTERNAL_ORIGIN', 'OD_PDLC_TRACKER_URL',
   ];
   if (!names.some((name) => env[name] !== undefined && env[name] !== '')) return null;
   const clientId = env.OD_PDLC_CLIENT_ID;

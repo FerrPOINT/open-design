@@ -9,6 +9,7 @@ import {
 } from '@pdlc/ui/application-access';
 import type { PdlcConfiguration, PdlcIdentity, WorkspaceDirectoryResponse } from '@open-design/contracts';
 import { pdlcAuthOrigin } from './pdlc-config.js';
+import { trackerProjects, trackerProjectsOrigin, TrackerProjectsError } from './pdlc-projects.js';
 
 export interface PdlcPrincipal {
   identity: PdlcIdentity;
@@ -226,6 +227,7 @@ export function installPdlcAuth(
   toolAuthorization: (req: Request) => PdlcPreviewAuthorization | null = () => null,
 ): { dispose(): void } {
   const bindings = new Map<string, Binding>();
+  const trackerOrigin = trackerProjectsOrigin(process.env.OD_PDLC_TRACKER_URL);
   const secure = new URL(config.publicOrigin).protocol === 'https:';
   const cookieName = `${secure ? '__Host-' : ''}od_pdlc_${createHash('sha256')
     .update(config.issuer + '\n' + config.publicOrigin).digest('hex')}`;
@@ -386,6 +388,15 @@ export function installPdlcAuth(
       }
       if (req.path === '/api/pdlc/session' && req.method === 'GET') {
         return res.json({ identity: value.identity, expiresAt: value.expiresAt });
+      }
+      if (req.path === '/api/pdlc/projects' && req.method === 'GET') {
+        if (value.credential.kind !== 'browser' || !token) return fail(res, new PdlcAuthError(403, 'Browser credential required'));
+        try { return res.json(await trackerProjects(trackerOrigin, binding?.token ?? token, requestId)); }
+        catch (error) {
+          return res.status(error instanceof TrackerProjectsError ? error.status : 503).json({ error: {
+            code: 'PDLC_TRACKER_PROJECTS_UNAVAILABLE', message: 'Не удалось получить проекты Task Tracker.', requestId,
+          } });
+        }
       }
       if (req.path === '/api/workspace/context' && req.method === 'GET') {
         // Local studio mode has no browser-bound Vela principal. Returning the

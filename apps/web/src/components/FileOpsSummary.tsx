@@ -15,7 +15,7 @@
  * AssistantMessage's render shape.
  */
 import { useId, useState } from 'react';
-import { VisuallyHidden } from '../pdlc/primitives';
+import { VisuallyHidden } from '@open-design/components';
 import { useT } from '../i18n';
 import type { Dict } from '../i18n/types';
 import { projectFileUrl } from '../providers/registry';
