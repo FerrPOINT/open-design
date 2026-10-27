@@ -44,8 +44,9 @@ it('keeps the project proxy behind the real studio gate and forwards a browser b
   const app = express(); app.use(express.json());
   const boundary = installPdlcAuth(app,{issuer:'https://auth.example',clientId:'open-design',publicOrigin:'https://design.example',
     hostOrigin:null,catalogUrl:null,applicationKey:'open-design'},async token => {
-    if (token !== 'browser') throw new Error('Denied');
-    return {identity:{subject:'alice',email:'alice@example.test',displayName:'Alice'},credential:{kind:'browser',sessionId:'session'},
+    if (!['browser', 'pat'].includes(token)) throw new Error('Denied');
+    return {identity:{subject:'alice',email:'alice@example.test',displayName:'Alice'},credential:token === 'pat'
+      ? {kind:'pat',scopes:['open-design:read']} : {kind:'browser',sessionId:'session'},
       expiresAt:Date.now()+60000,deadline:performance.now()+60000};
   });
   if (old === undefined) delete process.env.OD_PDLC_TRACKER_URL; else process.env.OD_PDLC_TRACKER_URL=old;
@@ -53,9 +54,12 @@ it('keeps the project proxy behind the real studio gate and forwards a browser b
   const origin = `http://127.0.0.1:${(studio.address() as {port:number}).port}`;
   try {
     expect((await fetch(origin+'/api/pdlc/projects')).status).toBe(401); expect(received).toEqual([]);
+    expect((await fetch(origin+'/api/pdlc/projects',{headers:{Authorization:'Bearer pat'}})).status).toBe(403);
+    expect(received).toEqual([]);
     const session = await fetch(origin+'/api/pdlc/session',{method:'POST',headers:{Origin:'https://design.example',Authorization:'Bearer browser'}});
     const result = await fetch(origin+'/api/pdlc/projects',{headers:{Cookie:session.headers.get('set-cookie')!.split(';')[0]!}});
-    expect(result.status).toBe(200); expect((await result.json()).projects[0].key).toBe('BASE');
+    expect(result.status).toBe(200);
+    expect(await result.json()).toEqual({projects:[{id:'tracker-project',key:'BASE',name:'Platform'}]});
     expect(received).toEqual(['Bearer browser']);
   } finally {
     boundary.dispose(); studio.closeAllConnections(); peer.closeAllConnections();
