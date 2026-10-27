@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { isPdlcMode } from '../pdlc/config';
 import type { CSSProperties, Dispatch, SetStateAction, JSX } from 'react';
 import { Button, VisuallyHidden } from '@open-design/components';
 import type {
@@ -4527,7 +4528,7 @@ export function SettingsDialog({
                 </button>
               </div>
               </div>
-              {cfg.mode === 'daemon' && !amrCardSignedIn ? (
+              {!isPdlcMode() && cfg.mode === 'daemon' && !amrCardSignedIn ? (
                 // Only prompt to sign into OpenDesign Cloud when NOT already
                 // signed in — the AMR/vela session IS the cloud identity (one
                 // session drives both), so a logged-in user has nothing to do

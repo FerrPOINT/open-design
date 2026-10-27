@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { isPdlcMode } from '../pdlc/config';
 import { VisuallyHidden } from '@open-design/components';
 import { Icon } from './Icon';
 import { useI18n } from '../i18n';
@@ -116,6 +117,10 @@ const ACTIVATION_HINT_DELAY_MS = 5000;
  * re-read, which swaps the rail to the signed-in form (unmounting the card).
  */
 export function CloudSignInTip() {
+  return isPdlcMode() ? null : <StandaloneCloudSignInTip />;
+}
+
+function StandaloneCloudSignInTip() {
   const { t } = useI18n();
   const [state, setState] = useState<TipState>('idle');
   const [status, setStatus] = useState<VelaLoginStatus | null>(null);
