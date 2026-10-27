@@ -37,7 +37,7 @@ export function TrackerProjectPicker({ subject }: { subject: string }) {
   }, [selected, projects, storageKey]);
   if (failed) return <Button variant="ghost" onClick={() => setAttempt(value => value + 1)}>
     {ru ? 'Проекты недоступны · Повторить' : 'Projects unavailable · Retry'}</Button>;
-  return <ProjectPicker value={selected} onChange={setSelected}
+  return <ProjectPicker value={selected} onChange={setSelected} style={{ maxWidth: 240 }}
     aria-label={ru ? 'Проект Task Tracker' : 'Task Tracker project'}
     disabled={!projects?.length} placeholder={!projects ? (ru ? 'Загрузка проектов…' : 'Loading projects…')
       : !projects.length ? (ru ? 'Нет доступных проектов' : 'No accessible projects') : (ru ? 'Все проекты' : 'All projects')}
