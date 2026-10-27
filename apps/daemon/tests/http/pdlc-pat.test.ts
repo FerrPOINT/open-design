@@ -101,3 +101,29 @@ it('revokes a running operation at the next proof deadline and disposes finished
   expect(authorize).toHaveBeenCalledTimes(1);
   expect(finished).not.toHaveBeenCalled();
 });
+
+it('expires a lease while Auth is pending and cannot resurrect it with a late proof', async () => {
+  const principal = (): PdlcPrincipal => ({
+    identity: { subject: 'alice', email: 'alice@example.test', displayName: 'Alice' },
+    credential: { kind: 'pat', scopes: ['open-design:write'] },
+    expiresAt: Date.now() + 60, deadline: performance.now() + 60,
+  });
+  let finish!: (value: PdlcPrincipal) => void;
+  const authorize = vi.fn(() => new Promise<PdlcPrincipal>(resolve => { finish = resolve; }));
+  const revoked = vi.fn();
+  const stop = watchPdlcAuthorization({ key: 'slow-owner', authorize }, revoked, principal());
+  await vi.waitFor(() => expect(authorize).toHaveBeenCalledOnce(), { interval: 1 });
+  expect(revoked).not.toHaveBeenCalled();
+  await vi.waitFor(() => expect(revoked).toHaveBeenCalledOnce(), { interval: 1 });
+  finish(principal());
+  await new Promise(resolve => setTimeout(resolve, 80));
+  expect(revoked).toHaveBeenCalledOnce();
+  expect(authorize).toHaveBeenCalledOnce();
+  stop();
+  const valid = vi.fn(async () => principal());
+  const neighbor = vi.fn();
+  const dispose = watchPdlcAuthorization({ key: 'healthy-owner', authorize: valid }, neighbor, principal());
+  await vi.waitFor(() => expect(valid).toHaveBeenCalledOnce(), { interval: 1 });
+  expect(neighbor).not.toHaveBeenCalled();
+  dispose();
+});

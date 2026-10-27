@@ -25,21 +25,29 @@ export interface PdlcPreviewAuthorization {
 }
 
 /** A background run cannot retain authority after its initiating proof expires. */
-export function watchPdlcAuthorization(authority: PdlcPreviewAuthorization, revoked: () => void): () => void {
+export function watchPdlcAuthorization(authority: PdlcPreviewAuthorization, revoked: () => void,
+  initial?: PdlcPrincipal): () => void {
   let closed = false;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const check = async () => {
-    try {
-      const principal = await authority.authorize();
-      if (closed) return;
-      timer = setTimeout(() => { void check(); }, Math.max(1, principal.deadline - performance.now()));
-      timer.unref();
-    } catch {
-      if (!closed) { closed = true; revoked(); }
-    }
+  let renewal: ReturnType<typeof setTimeout> | undefined;
+  let expiry: ReturnType<typeof setTimeout> | undefined;
+  const dispose = () => { closed = true; clearTimeout(renewal); clearTimeout(expiry); };
+  const deny = () => { if (!closed) { dispose(); revoked(); } };
+  const accept = (principal: PdlcPrincipal) => {
+    if (closed) return;
+    const remaining = principal.deadline - performance.now();
+    if (remaining <= 0) { deny(); return; }
+    clearTimeout(renewal); clearTimeout(expiry);
+    // Renew before the lease ends, but never extend it while Auth is pending.
+    expiry = setTimeout(deny, remaining);
+    renewal = setTimeout(() => { void check(); }, Math.max(1, remaining - Math.min(5000, remaining / 2)));
+    expiry.unref(); renewal.unref();
   };
-  void check();
-  return () => { closed = true; clearTimeout(timer); };
+  const check = async () => {
+    try { accept(await authority.authorize()); }
+    catch { deny(); }
+  };
+  if (initial) accept(initial); else void check();
+  return dispose;
 }
 const requestAuthorization = new AsyncLocalStorage<PdlcPreviewAuthorization>();
 /** Server-created runs inherit the initiating request's authority, never analytics identity. */
@@ -393,18 +401,8 @@ export function installPdlcAuth(
       // Track long-lived responses through their actual lifecycle. Owner proofs
       // expire in at most 60s; an open stream cannot outlive revoked admission.
       binding?.responses.add(res);
-      let closed = false;
-      let timer: ReturnType<typeof setTimeout>;
-      const schedule = (deadline: number) => {
-        timer = setTimeout(() => {
-          void authorize().then((fresh) => {
-            if (!closed) schedule(fresh.deadline);
-          }).catch(() => res.destroy());
-        }, Math.max(1, deadline - performance.now()));
-        timer.unref();
-      };
-      res.once('close', () => { closed = true; clearTimeout(timer); binding?.responses.delete(res); });
-      schedule(value.deadline);
+      const dispose = watchPdlcAuthorization(res.locals.pdlcPreview, () => res.destroy(), value);
+      res.once('close', () => { dispose(); binding?.responses.delete(res); });
       return requestAuthorization.run(res.locals.pdlcPreview, next);
     } catch (error) {
       if (!req.get('authorization') &&
