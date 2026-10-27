@@ -28,3 +28,11 @@ story
 **/.env.*
 .next
 out
+
+# Workspace packages must use Linux dependencies/output produced in this build.
+**/node_modules
+**/.next
+**/out
+**/dist
+**/coverage
+**/*.tsbuildinfo
