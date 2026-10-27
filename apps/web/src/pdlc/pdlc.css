@@ -23,6 +23,8 @@
 .pdlc-studio-content > .workspace-shell,
 .pdlc-studio-content > .app { height: 100%; width: 100%; max-width: 100%; }
 html[data-pdlc] {
+  --workspace-file-tab-max-width: 240px;
+  --workspace-file-tab-label-max-width: 200px;
   --bg: var(--color-surface);
   --bg-app: var(--color-surface);
   --bg-panel: var(--color-surface-raised);

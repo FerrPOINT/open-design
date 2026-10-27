@@ -17,11 +17,22 @@ import {
 } from '../../src/components/project-split-layout';
 
 afterEach(() => {
+  delete window.__OD_PDLC_CONFIG__;
   window.localStorage.clear();
   document.body.innerHTML = '';
 });
 
 describe('resolveProjectSplitLayout', () => {
+  it('uses a compact PDLC default while preserving saved and narrow-window layouts', () => {
+    window.__OD_PDLC_CONFIG__ = { issuer: 'https://auth.example', clientId: 'open-design',
+      publicOrigin: 'https://design.example', applicationKey: 'open-design', hostOrigin: null, catalogUrl: null };
+    const unsaved = { width: DEFAULT_CHAT_PANEL_WIDTH, customized: false };
+    expect(resolveProjectSplitLayout(1399, unsaved).chatPanelWidth).toBe(460);
+    expect(resolveProjectSplitLayout(2400, unsaved).chatPanelWidth).toBe(460);
+    expect(resolveProjectSplitLayout(640, unsaved).chatPanelWidth).toBe(MIN_CHAT_PANEL_WIDTH);
+    expect(resolveProjectSplitLayout(1399, { width: 610, customized: true }).chatPanelWidth).toBe(610);
+    expect(resolveProjectSplitLayout(900, { width: 700, customized: true }).chatPanelWidth).toBe(496);
+  });
   it('takes the equal split when nothing was saved', () => {
     const layout = resolveProjectSplitLayout(1280, { width: DEFAULT_CHAT_PANEL_WIDTH, customized: false });
     expect(layout.chatPanelWidth).toBe(638);

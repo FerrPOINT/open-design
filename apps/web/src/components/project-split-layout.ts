@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { isPdlcMode } from '../pdlc/config';
 
 /*
  * The project split's chat-column geometry, shared by every surface that
@@ -72,7 +73,10 @@ export function clampChatPanelWidth(
 export function defaultChatPanelWidthForSplit(splitWidth: number): number {
   if (!Number.isFinite(splitWidth) || splitWidth <= 0) return DEFAULT_CHAT_PANEL_WIDTH;
   const equalHalf = (splitWidth - SPLIT_RESIZE_HANDLE_WIDTH) / 2;
-  return clampChatPanelWidth(equalHalf, maxChatPanelWidthForSplit(splitWidth));
+  // Leave room for the design on desktop; narrow windows and saved widths keep
+  // the existing responsive constraints. Standalone retains its equal split.
+  const preferred = isPdlcMode() ? Math.min(DEFAULT_CHAT_PANEL_WIDTH, equalHalf) : equalHalf;
+  return clampChatPanelWidth(preferred, maxChatPanelWidthForSplit(splitWidth));
 }
 
 export function workspacePanelTrackForMinWidth(workspacePanelMinWidth: number): string {
