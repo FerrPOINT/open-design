@@ -1,6 +1,6 @@
 import { useId, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Dialog, DialogDescription, DialogFooter, DialogTitle } from '../pdlc/primitives';
+import { NativeButton, NativeInput, Dialog, DialogDescription, DialogFooter, DialogTitle } from '../pdlc/primitives';
 import { useT } from '../i18n';
 
 /** Same skip key the recent-projects grid persists its 不再提示 choice under. */
@@ -62,18 +62,19 @@ export function MoveToTeamConfirmDialog({
       </DialogDescription>
       <DialogFooter className="row">
         <label className="recent-projects__move-remind">
-          <input
+          <NativeInput
             type="checkbox"
             checked={dontRemind}
             onChange={(event) => setDontRemind(event.target.checked)}
           />
           {t('recentProjects.moveDontRemind')}
         </label>
-        <button type="button" onClick={onCancel}>
+        <NativeButton type="button" onClick={onCancel}>
           {t('designs.renameCancel')}
-        </button>
-        <button
+        </NativeButton>
+        <NativeButton
           type="button"
+          variant="default"
           className={`primary${action === 'to-team' ? ' recent-projects__move-confirm' : ''}`}
           onClick={() => {
             if (dontRemind) {
@@ -89,7 +90,7 @@ export function MoveToTeamConfirmDialog({
           {action === 'to-team'
             ? t('recentProjects.confirmMoveToTeam')
             : t('recentProjects.confirmMoveToPersonal')}
-        </button>
+        </NativeButton>
       </DialogFooter>
     </Dialog>
   );

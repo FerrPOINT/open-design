@@ -26,8 +26,9 @@ export const Textarea = forwardRef<HTMLTextAreaElement, Standalone.TextareaProps
   return platform() ? <Base.Textarea {...props} ref={ref} /> : <Standalone.Textarea {...props} ref={ref} />;
 });
 /** Previously native product fields retain native standalone semantics. */
-export const NativeButton = forwardRef<HTMLButtonElement, Standalone.ButtonProps>(function NativeButton(props, ref) {
-  if (platform()) return <Base.Button {...props} type={props.type ?? 'submit'} variant="ghost" size={props.size} ref={ref} />;
+type NativeButtonProps = Omit<Standalone.ButtonProps, 'variant'> & Pick<ComponentProps<typeof Base.Button>, 'variant'>;
+export const NativeButton = forwardRef<HTMLButtonElement, NativeButtonProps>(function NativeButton(props, ref) {
+  if (platform()) return <Base.Button {...props} type={props.type ?? 'submit'} variant={props.variant ?? 'ghost'} size={props.size} ref={ref} />;
   const { variant: _variant, size: _size, ...native } = props;
   return <button {...native} ref={ref} />;
 });

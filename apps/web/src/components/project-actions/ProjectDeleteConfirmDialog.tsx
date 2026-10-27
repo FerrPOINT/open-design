@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { Dialog, DialogDescription, DialogFooter, DialogTitle } from '../../pdlc/primitives';
+import { NativeButton, Dialog, DialogDescription, DialogFooter, DialogTitle } from '../../pdlc/primitives';
 
 import { useT } from '../../i18n';
 
@@ -49,23 +49,24 @@ export function ProjectDeleteConfirmDialog({
         </p>
       ) : null}
       <DialogFooter className="row">
-        <button
+        <NativeButton
           type="button"
           disabled={pending}
           onClick={onCancel}
           data-testid="project-delete-confirm-cancel"
         >
           {t('designs.renameCancel')}
-        </button>
-        <button
+        </NativeButton>
+        <NativeButton
           type="button"
           className="primary danger"
+          variant="destructive"
           disabled={pending}
           onClick={onConfirm}
           data-testid="project-delete-confirm-accept"
         >
           {t('designs.menuDelete')}
-        </button>
+        </NativeButton>
       </DialogFooter>
     </Dialog>
   );

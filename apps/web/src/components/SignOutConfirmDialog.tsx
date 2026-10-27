@@ -2,6 +2,7 @@ import { useId } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Dialog,
+  NativeButton,
   DialogDescription,
   DialogFooter,
   DialogTitle,
@@ -38,23 +39,24 @@ export function SignOutConfirmDialog({ busy = false, onCancel, onConfirm }: Prop
       <DialogTitle id={titleId}>{t('signOut.confirmTitle')}</DialogTitle>
       <DialogDescription>{t('signOut.confirmMessage')}</DialogDescription>
       <DialogFooter className="row">
-        <button
+        <NativeButton
           type="button"
           onClick={onCancel}
           disabled={busy}
           data-testid="sign-out-confirm-cancel"
         >
           {t('common.cancel')}
-        </button>
-        <button
+        </NativeButton>
+        <NativeButton
           type="button"
           className="primary"
+          variant="default"
           onClick={onConfirm}
           disabled={busy}
           data-testid="sign-out-confirm-accept"
         >
           {t('signOut.confirmAction')}
-        </button>
+        </NativeButton>
       </DialogFooter>
     </Dialog>
   );

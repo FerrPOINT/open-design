@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
-import { Button, Dialog, DialogTitle, Input } from '../src/pdlc/primitives';
+import { Button, Dialog, DialogTitle, Input, NativeButton } from '../src/pdlc/primitives';
 import { SelectField } from '../src/pdlc/select-field';
+import { ProjectDeleteConfirmDialog } from '../src/components/project-actions/ProjectDeleteConfirmDialog';
 
 afterEach(() => { cleanup(); delete window.__OD_PDLC_CONFIG__; });
 function platform() {
@@ -36,4 +37,21 @@ it('keeps the Base dialog and its label rather than a product focus trap', () =>
   expect(screen.getByRole('dialog', { name: 'Confirm' })).toHaveAttribute('data-testid','product-dialog');
   fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
   expect(close).toHaveBeenCalledOnce();
+});
+it('keeps destructive confirmation and pending actions on the Base boundary', () => {
+  platform(); const confirm = vi.fn(), cancel = vi.fn();
+  const props = { projectName: 'Owned fixture', pending: false, failed: false, onConfirm: confirm, onCancel: cancel };
+  const view = render(<ProjectDeleteConfirmDialog {...props} />);
+  const action = screen.getByTestId('project-delete-confirm-accept');
+  expect(action).toHaveAttribute('data-variant', 'destructive');
+  fireEvent.click(action); expect(confirm).toHaveBeenCalledOnce(); expect(cancel).not.toHaveBeenCalled();
+  view.rerender(<ProjectDeleteConfirmDialog {...props} pending />);
+  expect(action).toBeDisabled();
+  expect(screen.getByTestId('project-delete-confirm-cancel')).toBeDisabled();
+});
+it('preserves the original native confirmation markup outside PDLC', () => {
+  render(<NativeButton type="button" variant="destructive" className="primary danger">Delete</NativeButton>);
+  const action = screen.getByRole('button', { name: 'Delete' });
+  expect(action).toHaveClass('primary', 'danger');
+  expect(action).not.toHaveAttribute('data-variant');
 });
