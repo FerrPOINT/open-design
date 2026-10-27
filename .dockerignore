@@ -18,3 +18,13 @@ deploy/**/*.tgz
 deploy/**/*.zip
 docs
 story
+
+# Local runtime, credentials and generated web output never enter the build context.
+.tmp
+.local
+.env
+.env.*
+**/.env
+**/.env.*
+.next
+out

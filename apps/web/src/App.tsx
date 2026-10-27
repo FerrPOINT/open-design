@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { flushSync } from 'react-dom';
 import { usePdlcReadiness } from './pdlc/readiness';
 import { AnimatePresence, motion, MotionConfig } from 'motion/react';
-import { Button } from '@open-design/components';
+import { Button } from './pdlc/primitives';
 import { reportAgentDetectDiagnostics } from './analytics/agent-detect';
 import { useAnalytics } from './analytics/provider';
 import {

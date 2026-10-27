@@ -19,7 +19,7 @@
  * 失败那格自己还分两态,由「这一轮还活着吗」决定 —— 见 `retryHandlerFor`。
  */
 import type { ReactElement } from 'react';
-import { VisuallyHidden } from '@open-design/components';
+import { VisuallyHidden } from '../../../pdlc/primitives';
 import { useT } from '../../../i18n';
 import type { ImageRow as ImageRowData } from '../../../runtime/chat/contract';
 import { formatElapsed } from '../../../runtime/chat/format';

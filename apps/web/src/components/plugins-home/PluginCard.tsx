@@ -13,7 +13,7 @@
 // needs to commit.
 
 import { useMemo, useRef, useState } from 'react';
-import { VisuallyHidden } from '@open-design/components';
+import { VisuallyHidden } from '../../pdlc/primitives';
 import type {
   InstalledPluginRecord,
   WorkspaceCollabContext,

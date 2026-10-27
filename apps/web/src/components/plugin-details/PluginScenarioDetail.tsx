@@ -8,7 +8,7 @@
 // (backdrop, header, byline, hero, footer with Use plugin CTA).
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Dialog } from '@open-design/components';
+import { Dialog } from '../../pdlc/primitives';
 import type {
   InstalledPluginRecord,
   PluginManifest,

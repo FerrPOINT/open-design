@@ -10,7 +10,7 @@
 // existing imports (`BrandLogo`, `hostnameOf`) keep working.
 
 import { useCallback, useEffect, useState } from 'react';
-import { Button } from '@open-design/components';
+import { Button } from '../pdlc/primitives';
 import type { BrandSummary } from '@open-design/contracts';
 import { useT } from '../i18n';
 import { navigate } from '../router';

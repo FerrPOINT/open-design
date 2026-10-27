@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { Dialog, DialogDescription, DialogFooter, DialogTitle } from '@open-design/components';
+import { Dialog, DialogDescription, DialogFooter, DialogTitle } from '../../pdlc/primitives';
 
 import { useT } from '../../i18n';
 

@@ -1,4 +1,4 @@
-import { Button } from '@open-design/components';
+import { Button } from '../pdlc/primitives';
 import { useCallback, useEffect, useId, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 

@@ -50,7 +50,7 @@ describe('PDLC request boundary', () => {
     const subject = token === 'alice-next' ? 'alice' : token;
     return {
       identity: { subject, email: `${subject}@example.test`, displayName: subject },
-      sessionId: `central-${subject}`,
+      credential: { kind: 'browser' as const, sessionId: `central-${subject}` },
       expiresAt: Date.now() + 120_000, deadline: performance.now() + proofLifetime,
     };
   });

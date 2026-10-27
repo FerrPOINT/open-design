@@ -22,7 +22,7 @@ import { type CSSProperties, useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
 import type { LibraryAsset } from '@open-design/contracts';
-import { Button } from '@open-design/components';
+import { Button } from '../pdlc/primitives';
 import { libraryAssetElementUrl, libraryAssetFigmaUrl, libraryAssetRawUrl } from '../providers/registry';
 import { modalOverlay, modalContent } from '../motion';
 import {

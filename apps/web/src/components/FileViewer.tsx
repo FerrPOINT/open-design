@@ -1,10 +1,11 @@
+import { SelectField as CustomSelect } from '../pdlc/select-field';
 import { useExperienceError } from '../observability/use-experience-error';
 import { daemonErrorCodeProp, failureDetailProps } from '../analytics/failure-detail';
 import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ClipboardEvent as ReactClipboardEvent, type CSSProperties, type DragEvent as ReactDragEvent, type MouseEvent as ReactMouseEvent, type ReactNode } from 'react';
 import type { ArtifactExportFormat } from '../runtime/chat/artifact-export';
 import { AnchoredMenuShell } from './chat/AnchoredMenuShell';
 import { createPortal, flushSync } from 'react-dom';
-import { Button, Input, Select } from '@open-design/components';
+import { Button, Input } from '../pdlc/primitives';
 import {
   getLatestHostPreviewNavigationFailure,
   subscribeHostPreviewNavigationFailure,
@@ -5256,27 +5257,23 @@ function InspectPanel({
         </div>
         <div className="inspect-row">
           <label htmlFor="ip-fw">{t('inspect.weight')}</label>
-          <Select
+          <CustomSelect
             id="ip-fw"
             value={fontWeight}
-            onChange={(e) => setVal('font-weight', e.target.value)}
-          >
-            {['100', '300', '400', '500', '600', '700', '800', '900'].map((w) => (
-              <option key={w} value={w}>{w}</option>
-            ))}
-          </Select>
+            onChange={next => setVal('font-weight', next)}
+            ariaLabel={t('inspect.weight')}
+            options={[...['100', '300', '400', '500', '600', '700', '800', '900'].map((w)=>({value:w,label:w,disabled:false}))]}
+          />
         </div>
         <div className="inspect-row">
           <label htmlFor="ip-ta">{t('inspect.align')}</label>
-          <Select
+          <CustomSelect
             id="ip-ta"
             value={textAlign}
-            onChange={(e) => setVal('text-align', e.target.value)}
-          >
-            {['left', 'center', 'right', 'justify'].map((a) => (
-              <option key={a} value={a}>{a}</option>
-            ))}
-          </Select>
+            onChange={next => setVal('text-align', next)}
+            ariaLabel={t('inspect.align')}
+            options={[...['left', 'center', 'right', 'justify'].map((a)=>({value:a,label:a,disabled:false}))]}
+          />
         </div>
       </section>
 
@@ -18374,31 +18371,26 @@ function HtmlViewer({
                 </div>
               <label className="deploy-provider-field">
                 <span className="deploy-field-title">{t('fileViewer.deployProviderLabel')}</span>
-                <select
+                <CustomSelect
                   value={deployProviderId}
-                  onChange={(e) => {
-                    void changeDeployProvider(e.target.value as WebDeployProviderId);
+                  onChange={next => {
+                      void changeDeployProvider(next as WebDeployProviderId);
                   }}
-                >
-                  {DEPLOY_PROVIDER_OPTIONS.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {t(option.labelKey)}
-                    </option>
-                  ))}
-                </select>
+                  ariaLabel={t('fileViewer.deployProviderLabel')}
+                  options={[...DEPLOY_PROVIDER_OPTIONS.map((option)=>({value:option.id,label:t(option.labelKey),disabled:false}))]}
+                />
               </label>
               {deployProviderId === CLOUDFLARE_PAGES_PROVIDER_ID ? (
                 <label className="deploy-target-field">
                   <span className="deploy-field-title">{t('fileViewer.deployTargetLabel')}</span>
-                  <select
+                  <CustomSelect
                     value={deployTarget}
-                    onChange={(e) => {
-                      setDeployTarget(e.target.value as 'preview' | 'production');
+                    onChange={next => {
+                        setDeployTarget(next as 'preview' | 'production');
                     }}
-                  >
-                    <option value="preview">{t('fileViewer.deployTargetPreview')}</option>
-                    <option value="production">{t('fileViewer.deployTargetProduction')}</option>
-                  </select>
+                    ariaLabel={t('fileViewer.deployTargetLabel')}
+                    options={[{value:"preview",label:t('fileViewer.deployTargetPreview'),disabled:false},{value:"production",label:t('fileViewer.deployTargetProduction'),disabled:false}]}
+                  />
                 </label>
               ) : null}
               <div className="field-label-row deploy-token-label-row">
@@ -18479,21 +18471,14 @@ function HtmlViewer({
                           {cloudflareZonesLoading ? t('fileViewer.cloudflareZonesLoading') : t('fileViewer.cloudflareZonesRefresh')}
                         </button>
                       </span>
-                      <select
+                      <CustomSelect
                         id="cloudflare-zone-select"
                         value={cloudflareZoneId}
                         disabled={cloudflareZonesLoading || (!deployConfig?.configured && !cloudflareZones.length)}
-                        onChange={(e) => setCloudflareZoneId(e.target.value)}
-                      >
-                        {cloudflareZones.length === 0 ? (
-                          <option value="">{t('fileViewer.cloudflareZonePlaceholder')}</option>
-                        ) : null}
-                        {cloudflareZones.map((zone) => (
-                          <option key={zone.id} value={zone.id}>
-                            {zone.name}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={next => setCloudflareZoneId(next)}
+                        ariaLabel="cloudflare-zone-select"
+                        options={[...(cloudflareZones.length === 0 ? [{value:"",label:t('fileViewer.cloudflareZonePlaceholder'),disabled:false}] : []),...cloudflareZones.map((zone)=>({value:zone.id,label:zone.name,disabled:false}))]}
+                      />
                     </div>
                   </div>
                   {cloudflareZonesError ? (

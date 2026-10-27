@@ -28,6 +28,8 @@ upstream sandbox mode: перед установкой оператор опре
 | `OD_PDLC_PUBLIC_ORIGIN` | Собственный origin web/API OpenDesign |
 | `OD_PDLC_HOST_ORIGIN` | Необязательный origin persistent host Base |
 | `OD_PDLC_CATALOG_URL` | Необязательный публичный runtime catalog Admin |
+| `OD_PDLC_BRANDING_URL` | Необязательный published runtime branding Admin |
+| `OD_PDLC_AUTH_INTERNAL_ORIGIN` | Только сервер: private transport Central Auth; публичный issuer неизменен |
 
 HTTPS обязателен, кроме loopback для локальной проверки. Частичная конфигурация
 отклоняется при старте; отсутствие или пустые значения всех полей сохраняют
@@ -38,7 +40,9 @@ Frontend получает только публичную конфигураци
 [Daemon data directory contract](../AGENTS.md#daemon-data-directory-contract).
 
 Разработка ведётся в отдельной ветке текущего workspace. AI Hub, production,
-общие установленные stacks, их данные и конфигурация не изменяются.
+остальные установленные приложения, их данные и конфигурация не изменяются.
+Локальная установка OpenDesign в `pdlc3` выполняется отдельной operator-процедурой;
+это не production deployment.
 
 ## Регистрация в PDLC
 
@@ -141,3 +145,64 @@ diagnostics. Canvas/диалоги проверяются отдельно на 
 [Протокол проверки](pdlc-acceptance.md) разделяет source checks, собственный
 живой контур и приёмку persistent host. Установка и приёмка общего runtime
 не выполнялись; source PR не является подтверждением deployment.
+
+## Авторизованный CLI и MCP
+
+Существующий `od` и его `--daemon-url` сохраняются. Для установленной студии
+оператор передаёт личный Central Auth PAT через `PDLC_API_TOKEN`, без собственного
+login или credential store. Не записывать значение токена в команды, историю
+или документы. Пример вызова с уже установленной переменной окружения:
+
+```sh
+od project list --daemon-url https://design.example
+```
+
+PAT проверяется через `/auth/tokens/introspect?include_lifetime=true`: текущий
+допуск `open-design`, срок действия и scopes. Чтение требует `open-design:read`,
+изменение — `open-design:write`. MCP использует те же защищённые HTTP операции;
+локальные `initialize` и перечисление инструментов сами по себе не дают доступа.
+Успех CLI возвращает exit 0; отказ авторизации — structured JSON error и exit 1.
+Существующие специальные exit codes upstream сохраняются.
+Узкий server-issued tool token имеет приоритет над PAT и не расширяет свои права.
+
+HTTP транспорт передаёт PAT только явно выбранному daemon target. Перенаправление
+credentials запрещено; ошибки сети не воспроизводят URL или секрет. Timeout до
+получения заголовков — 30 секунд; открытые потоки контролируются серверным сроком
+owner proof. Авторизация пересматривается на каждом запросе и по deadline во
+время потока/фоновой генерации. Отзыв прекращает дальнейшую работу; завершённые
+файлы общей студии сохраняются. `401`, `403`, `429` и `503` различаются.
+
+## Общий интерфейс
+
+`PlatformProvider` получает published branding Admin. Отсутствие опубликованной
+ревизии сохраняет штатный Base fallback. Выбранная тема применяется существующим
+prepaint-механизмом до React. Язык шапки следует языку OpenDesign, с fallback
+Base для остальных локалей. Общие controls используют публичные Base primitives;
+предметный canvas/preview сохраняется. Standalone использует прежние controls.
+
+## Поставка и восстановление
+
+Штатная поставка использует один образ форка с OCI source/revision и immutable
+image ID, отдельный постоянный том, существующую сеть и loopback-порт установки.
+Правила daemon data root определены только в [AGENTS.md](../AGENTS.md#daemon-data-directory-contract).
+
+Порядок: квалифицировать Base operator → собрать и проверить форк → подготовить
+закрытый installation request → добавить OIDC/application catalogs с сохранением
+существующих записей → установить optional service → одобрить декларацию Admin
+с `health.read` и `ui.render` → проверить CLI и IAB. QA peer не устанавливается.
+
+Использовать существующий `pdlc_operator` с явными `--root` и `--installed`.
+Команды `Start`, `Stop`, `Status`, `Logs` направляются только в выбранный сервис.
+`BackupData --output` останавливает только OpenDesign, архивирует согласованные
+файлы и возвращает сервис. `RestoreData --archive --target-volume` восстанавливает
+только в новый изолированный том и сравнивает содержимое, права и владельцев.
+Архив содержит проекты и может содержать секреты upstream; хранить его приватно.
+Полный legacy backup не заменяет эту явную файловую копию optional-приложения.
+
+Обновлять только OpenDesign через operator image/CAS plan, сохраняя прежний image,
+точную конфигурацию и совместимую копию данных. Неудачный первый запуск возвращает
+исходный sealed bundle; неудачное обновление возвращает предыдущую конфигурацию
+и образ. Данные никогда автоматически не удаляются и не перезаписываются.
+Для несовместимой миграции требуется отдельное восстановление в новый том.
+Source checks, image build, установка и пользовательская приёмка фиксируются
+отдельно в [acceptance](pdlc-acceptance.md).

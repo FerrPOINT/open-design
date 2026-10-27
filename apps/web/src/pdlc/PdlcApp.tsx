@@ -11,12 +11,12 @@ import {
   applySsoSession, beginSso, completeSso, endSso, isSsoLoginRequired,
   isSsoNavigationInterruption, relaySsoCallback, restoreSso, type SsoConfig,
 } from '@pdlc/ui/sso';
-import { ThemeProvider } from '@pdlc/ui/lib';
+import { PlatformProvider, ThemeProvider } from '@pdlc/ui/lib';
 import { pdlcLocales } from '@pdlc/ui/i18n';
 import {
   Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
   ErrorState, LoadingState, PlatformHeader, PlatformLogin, PlatformMark,
-  PlatformServicesProvider, ThemeMenuItems,
+  PlatformServicesProvider, ThemeMenuItems, Toaster,
 } from '@pdlc/ui/ui';
 import {
   capturePlatformReturn, connectPlatformProduct, finishPlatformLogin, getPlatformProduct,
@@ -24,6 +24,7 @@ import {
 import type { PdlcConfiguration, PdlcIdentity, PdlcSessionResponse } from '@open-design/contracts';
 import { App } from '../App';
 import { confirmProductLeave, navigatePath, useRoute } from '../router';
+import { useI18n } from '../i18n';
 
 const boundaryKey = 'open-design:pdlc-session-boundary';
 const labels = createInstance();
@@ -61,6 +62,8 @@ function platformRouter(): Navigator {
 }
 
 export function PdlcApp() {
+  const { locale } = useI18n();
+  useEffect(() => { void labels.changeLanguage(locale === 'ru' ? 'ru' : 'en'); }, [locale]);
   const [configuration, setConfiguration] = useState<PdlcConfiguration | null | undefined>(window.__OD_PDLC_CONFIG__);
   const [error, setError] = useState(false);
   const load = useCallback(() => {
@@ -76,12 +79,18 @@ export function PdlcApp() {
   useEffect(() => { if (configuration === undefined) load(); }, [configuration, load]);
   if (configuration === null) return <App />;
   return <I18nextProvider i18n={labels}><ThemeProvider>
+    <PlatformProvider configUrl={configuration?.brandingUrl ?? null} serviceName="OpenDesign">
+    <Toaster />
     {error ? <ErrorState message="Не удалось загрузить конфигурацию OpenDesign." onRetry={load} />
       : configuration === undefined ? <LoadingState /> : <PlatformStudio config={configuration} />}
+    </PlatformProvider>
   </ThemeProvider></I18nextProvider>;
 }
 
 function PlatformStudio({ config }: { config: PdlcConfiguration }) {
+  const { locale } = useI18n();
+  const accountLabel = locale === 'ru' ? 'Аккаунт PDLC' : 'PDLC account';
+  const accountText = locale === 'ru' ? 'Аккаунт' : 'Account';
   const sso = useMemo<SsoConfig>(() => ({ issuer: config.issuer, clientId: config.clientId, namespace: 'pdlc' }), [config]);
   const [phase, setPhase] = useState<'loading' | 'ready' | 'login' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
@@ -231,11 +240,11 @@ function PlatformStudio({ config }: { config: PdlcConfiguration }) {
         <PlatformHeader currentServiceKey={config.applicationKey}
           leading={<PlatformMark withName size="sm" />}
           actions={<DropdownMenu><DropdownMenuTrigger asChild>
-            <Button variant="ghost" aria-label="Аккаунт PDLC">{phase === 'ready' ? name ?? 'Аккаунт' : 'Аккаунт'}</Button>
+            <Button variant="ghost" aria-label={accountLabel}>{phase === 'ready' ? name ?? accountText : accountText}</Button>
           </DropdownMenuTrigger><DropdownMenuContent align="end">
             {phase === 'ready' && <><p>{name}</p><p>{email}</p></>}<ThemeMenuItems />
             <DropdownMenuItem disabled={ending || (phase !== 'ready' && phase !== 'error')}
-              onSelect={() => void logout()}>Выйти</DropdownMenuItem>
+              onSelect={() => void logout()}>{locale === 'ru' ? 'Выйти' : 'Sign out'}</DropdownMenuItem>
           </DropdownMenuContent></DropdownMenu>} />
         <div className="pdlc-studio-content">
           {phase === 'ready' && token ? <RequireApplicationAccess application={config.applicationKey}><App /></RequireApplicationAccess>

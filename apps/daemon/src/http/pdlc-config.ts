@@ -1,4 +1,5 @@
 import type { PdlcConfiguration } from '@open-design/contracts';
+import { isLoopbackHost } from './loopback-url.js';
 
 function urlSetting(value: string | undefined, name: string, originOnly = false): string {
   if (!value) throw new Error(`${name} is required in PDLC mode`);
@@ -6,7 +7,7 @@ function urlSetting(value: string | undefined, name: string, originOnly = false)
   if (
     !['https:', 'http:'].includes(url.protocol) || url.username || url.password ||
     url.search || url.hash || (originOnly && url.pathname !== '/') ||
-    (url.protocol === 'http:' && !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname))
+    (url.protocol === 'http:' && !isLoopbackHost(url.hostname))
   ) throw new Error(`${name} must be an HTTPS URL (HTTP is limited to loopback)`);
   return originOnly ? url.origin : url.href;
 }
@@ -17,7 +18,8 @@ export function pdlcConfiguration(
 ): PdlcConfiguration | null {
   const names = [
     'OD_PDLC_AUTH_ISSUER', 'OD_PDLC_CLIENT_ID', 'OD_PDLC_PUBLIC_ORIGIN',
-    'OD_PDLC_HOST_ORIGIN', 'OD_PDLC_CATALOG_URL',
+    'OD_PDLC_HOST_ORIGIN', 'OD_PDLC_CATALOG_URL', 'OD_PDLC_BRANDING_URL',
+    'OD_PDLC_AUTH_INTERNAL_ORIGIN',
   ];
   if (!names.some((name) => env[name] !== undefined && env[name] !== '')) return null;
   const clientId = env.OD_PDLC_CLIENT_ID;
@@ -32,6 +34,20 @@ export function pdlcConfiguration(
       ? urlSetting(env.OD_PDLC_HOST_ORIGIN, 'OD_PDLC_HOST_ORIGIN', true) : null,
     catalogUrl: env.OD_PDLC_CATALOG_URL
       ? urlSetting(env.OD_PDLC_CATALOG_URL, 'OD_PDLC_CATALOG_URL') : null,
+    brandingUrl: env.OD_PDLC_BRANDING_URL
+      ? urlSetting(env.OD_PDLC_BRANDING_URL, 'OD_PDLC_BRANDING_URL') : null,
     applicationKey: 'open-design',
   };
+}
+
+/** Explicit server-only transport inside the installation network; the issuer never changes. */
+export function pdlcAuthOrigin(value: string | undefined, issuer: string): string {
+  if (!value) return issuer;
+  const url = new URL(value);
+  const privateDns = /^[a-z][a-z0-9-]*$/i.test(url.hostname);
+  if (value.trim() !== value || url.username || url.password || url.pathname !== '/' || url.search || url.hash ||
+    !(url.protocol === 'https:' || (url.protocol === 'http:' && (isLoopbackHost(url.hostname) || privateDns)))) {
+    throw new Error('Auth transport must be HTTPS or an explicit local installation origin');
+  }
+  return url.origin;
 }

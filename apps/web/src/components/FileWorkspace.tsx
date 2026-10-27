@@ -12,7 +12,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react';
-import { Button } from '@open-design/components';
+import { Button } from '../pdlc/primitives';
 import { createPortal } from 'react-dom';
 import type { DesignSystemEditClickProps, TrackingArtifactKind, TrackingProjectKind } from '@open-design/contracts/analytics';
 import { useAnalytics } from '../analytics/provider';

@@ -5,7 +5,7 @@ import {
   DialogDescription,
   DialogFooter,
   DialogTitle,
-} from '@open-design/components';
+} from '../pdlc/primitives';
 import { useT } from '../i18n';
 
 interface Props {

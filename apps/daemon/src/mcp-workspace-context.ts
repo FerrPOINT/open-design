@@ -128,3 +128,4 @@ export function _resetMcpWorkspaceContextCacheForTests(): void {
   cache.clear();
   lastFailureAt.clear();
 }
+import { daemonFetch as fetch } from './daemon-fetch.js';

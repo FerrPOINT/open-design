@@ -17,6 +17,8 @@ ENV https_proxy=${https_proxy}
 ENV no_proxy=${no_proxy}
 ENV NO_PROXY=${NO_PROXY}
 ENV CI=true
+ENV ELECTRON_SKIP_BINARY_DOWNLOAD=1
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
 RUN apk add --no-cache python3 make g++
 
@@ -28,6 +30,10 @@ COPY packages ./packages
 COPY tools ./tools
 COPY apps/daemon/package.json ./apps/daemon/package.json
 COPY apps/web/package.json ./apps/web/package.json
+COPY apps/closure/package.json ./apps/closure/package.json
+COPY apps/desktop/package.json ./apps/desktop/package.json
+COPY apps/packaged/package.json ./apps/packaged/package.json
+COPY shells/terminal/package.json ./shells/terminal/package.json
 COPY e2e/package.json ./e2e/package.json
 RUN corepack enable && \
     corepack prepare pnpm@10.33.2 --activate && \
@@ -74,6 +80,7 @@ RUN pnpm --filter @open-design/daemon build && \
 # context, etc.).
 COPY skills ./skills
 COPY design-systems ./design-systems
+COPY design-templates ./design-templates
 COPY craft ./craft
 COPY prompt-templates ./prompt-templates
 COPY assets ./assets
@@ -85,6 +92,9 @@ COPY data ./data
 COPY plugins/_official ./plugins/_official
 
 FROM ${RUNTIME_IMAGE}
+ARG SOURCE_REVISION
+LABEL org.opencontainers.image.source="https://github.com/FerrPOINT/open-design"
+LABEL org.opencontainers.image.revision="${SOURCE_REVISION}"
 
 RUN apk add --no-cache tini poppler-utils bash git && \
     addgroup -S -g 1001 open-design && \
@@ -95,6 +105,7 @@ COPY --from=build --chown=open-design:open-design /app/deploy/daemon ./apps/daem
 COPY --from=build --chown=open-design:open-design /app/apps/web/out ./apps/web/out
 COPY --from=build --chown=open-design:open-design /app/skills ./skills
 COPY --from=build --chown=open-design:open-design /app/design-systems ./design-systems
+COPY --from=build --chown=open-design:open-design /app/design-templates ./design-templates
 COPY --from=build --chown=open-design:open-design /app/craft ./craft
 COPY --from=build --chown=open-design:open-design /app/prompt-templates ./prompt-templates
 COPY --from=build --chown=open-design:open-design /app/data ./data

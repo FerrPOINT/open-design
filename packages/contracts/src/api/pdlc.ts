@@ -5,6 +5,7 @@ export interface PdlcConfiguration {
   publicOrigin: string;
   hostOrigin: string | null;
   catalogUrl: string | null;
+  brandingUrl?: string | null;
   applicationKey: 'open-design';
 }
 

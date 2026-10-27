@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent, type KeyboardEvent, type ReactNode } from 'react';
-import { Button, Textarea } from '@open-design/components';
+import { Button, Textarea } from '../pdlc/primitives';
 import type {
   ConnectorConnectResponse,
   ConnectorDetail,

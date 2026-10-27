@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Dialog } from '@open-design/components';
+import { Dialog } from '../pdlc/primitives';
 import type { SkillDetail, SkillSummary } from '@open-design/contracts';
 import { useI18n } from '../i18n';
 import {

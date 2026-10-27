@@ -17,7 +17,7 @@ import type {
 } from '@open-design/sidecar-proto';
 import express from 'express';
 import { pdlcConfiguration } from './http/pdlc-config.js';
-import { currentPdlcAuthorization, installPdlcAuth } from './http/pdlc-auth.js';
+import { currentPdlcAuthorization, installPdlcAuth, watchPdlcAuthorization } from './http/pdlc-auth.js';
 import { createPdlcToolAuthorization } from './http/pdlc-tool-authorization.js';
 import multer from 'multer';
 import JSZip from 'jszip';
@@ -1828,7 +1828,7 @@ export function createAgentRuntimeEnv(
   // children receive only their run-scoped tool capability, never that broad
   // credential inherited from the daemon process (including Windows casing).
   for (const key of Object.keys(env)) {
-    if (key.toUpperCase() === 'OD_API_TOKEN') delete env[key];
+    if (['OD_API_TOKEN', 'PDLC_API_TOKEN'].includes(key.toUpperCase())) delete env[key];
   }
   // A GUI-launched daemon can inherit a broken PATHEXT such as `.CPL` (issue
   // #6934). Nested native commands then lose stdout/stderr or fail with
@@ -11423,10 +11423,11 @@ export async function startServer({
       }
     }
     const inactivityTimeoutMs = resolveChatRunInactivityTimeoutMs(def.inactivityTimeoutMs);
+    const runAuthority = currentPdlcAuthorization();
     const toolTokenTtlMs = resolveChatToolTokenTtlMs(inactivityTimeoutMs);
     const toolTokenGrant = cwd && typeof projectId === 'string' && projectId
       ? toolTokenRegistry.mint({
-          authorization: currentPdlcAuthorization() ?? undefined,
+          authorization: runAuthority ?? undefined,
           runId,
           projectId,
           allowedEndpoints: CHAT_TOOL_ENDPOINTS,
@@ -11455,6 +11456,16 @@ export async function startServer({
         activeChatAgentEventSinks.delete(sinkRunId);
         activeChatRunHandles.delete(sinkRunId);
       };
+    }
+    if (runAuthority) {
+      const stopAuthorityWatch = watchPdlcAuthorization(runAuthority, () => {
+        console.info(JSON.stringify({ event: 'pdlc.run.authority_revoked', runId }));
+        void design.runs.cancel(run, 'unknown').catch(() => {
+          console.error('[pdlc] Could not cancel a run after authority revocation');
+        });
+      });
+      const previousFinalize = run.onFinalize;
+      run.onFinalize = () => { stopAuthorityWatch(); previousFinalize?.(); };
     }
     const runtimeToolPrompt = createAgentRuntimeToolPrompt(daemonUrl, toolTokenGrant);
     const commentHint = renderCommentAttachmentHint(safeCommentAttachments);

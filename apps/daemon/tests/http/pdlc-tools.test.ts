@@ -11,7 +11,7 @@ afterEach(() => registry.clear());
 describe('initiating authority on run capabilities', () => {
   it('keeps server-only authority out of public grants and rejects a broader endpoint', async () => {
     const authorize = vi.fn(async () => ({ identity: { subject: 'alice', email: 'a@example.test', displayName: 'Alice' },
-      sessionId: 'session', expiresAt: Date.now() + 60_000, deadline: performance.now() + 60_000 }));
+      credential: { kind: 'browser' as const, sessionId: 'session' }, expiresAt: Date.now() + 60_000, deadline: performance.now() + 60_000 }));
     const grant = registry.mint({ runId: 'run-1', projectId: 'project-a',
       allowedEndpoints: ['/api/tools/library/search'], authorization: { key: 'binding', authorize } });
     expect(Object.hasOwn(grant, 'authorization')).toBe(false);

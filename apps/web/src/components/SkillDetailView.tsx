@@ -5,7 +5,7 @@ import {
   useState,
   type CSSProperties,
 } from 'react';
-import { Button } from '@open-design/components';
+import { Button } from '../pdlc/primitives';
 import type { SkillDetail, SkillSummary } from '@open-design/contracts';
 import { renderMarkdownToSafeHtml } from '../artifacts/markdown';
 import { useI18n } from '../i18n';

@@ -16,6 +16,7 @@ import { runLiveArtifactsToolCli } from './tools-live-artifacts-cli.js';
 import { runDeliverableSyntaxToolCli } from './tools-deliverable-syntax-cli.js';
 import { splitResearchSubcommand } from './research/cli-args.js';
 import { resolveDaemonUrl } from './daemon-url.js';
+import { daemonFetch as fetch } from './daemon-fetch.js';
 import { SidecarFactory } from '@open-design/sidecar';
 import { APP_KEYS, SIDECAR_MESSAGES } from '@open-design/sidecar-proto';
 import { EXPORT_FORMATS, EXPORT_IMAGE_FORMATS, mediaFailureNextStep } from '@open-design/contracts';
@@ -32,6 +33,7 @@ import {
 import { resolveMcpWorkspaceContext } from './mcp-workspace-context.js';
 
 const argv = process.argv.slice(2);
+class CliExit extends Error { constructor(readonly exitCode: number) { super('CLI command completed'); } }
 
 const RESUME_CONTINUE_PROMPT =
   'The previous turn was interrupted by a transient failure. ' +
@@ -837,13 +839,20 @@ const first = argv.find((a) => !a.startsWith('-'));
 if (first && SUBCOMMAND_MAP[first]) {
   const idx = argv.indexOf(first);
   const rest = [...argv.slice(0, idx), ...argv.slice(idx + 1)];
-  await SUBCOMMAND_MAP[first](rest);
+  try { await SUBCOMMAND_MAP[first](rest); }
+  catch (error) {
+    if (error instanceof CliExit) process.exitCode = error.exitCode;
+    else {
+      process.stderr.write(JSON.stringify({ error: { code: 'CLI_REQUEST_FAILED', message: 'Command failed; check daemon URL, connectivity and credentials.' } }) + '\n');
+      process.exitCode = 1;
+    }
+  }
   // Respect a non-zero exit code a handler set via process.exitCode (e.g. a
   // failed `od resource get`); default to 0 when it left it unset.
-  process.exit(process.exitCode ?? 0);
+  process.exitCode ??= 0;
 }
 
-if (argv[0] === 'tools' && argv[1] === 'live-artifacts') {
+else if (argv[0] === 'tools' && argv[1] === 'live-artifacts') {
   runLiveArtifactsToolCli(argv.slice(2))
     .then(({ exitCode }) => {
       process.exitCode = exitCode;
@@ -2714,7 +2723,7 @@ function exitWithStructuredError({ code, message, data }) {
   const exit = RECOVERABLE_EXIT_CODES[code] ?? 1;
   const envelope = { error: { code, message, data: data ?? {} } };
   process.stderr.write(JSON.stringify(envelope) + '\n');
-  process.exit(exit);
+  throw new CliExit(exit);
 }
 
 // Map a daemon HTTP response into the exit-code envelope. Returns the
@@ -2752,7 +2761,7 @@ async function structuredHttpFailure(resp, fallbackCode = 'daemon-not-running') 
   }
   exitWithStructuredError({
     code:    fallbackCode,
-    message: errorObj?.message ?? `HTTP ${resp.status}${raw ? `: ${raw}` : ''}`,
+    message: errorObj?.message ?? `HTTP ${resp.status}`,
     data:    structuredErrorData(errorObj),
   });
 }

@@ -1,8 +1,11 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render as renderView, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { beginSso, completeSso, endSso, restoreSso, SsoLoginRequiredError, type SsoSession } from '@pdlc/ui/sso';
 import { PdlcApp } from '../src/pdlc/PdlcApp';
+import { I18nProvider } from '../src/i18n';
+import type { ReactNode } from 'react';
+const render = (view: ReactNode) => renderView(<I18nProvider initial="ru">{view}</I18nProvider>);
 
 vi.mock('../src/App', () => ({ App: () => <div data-testid="studio-editor">Editor</div> }));
 vi.mock('@pdlc/ui/sso', async (original) => ({
@@ -61,6 +64,13 @@ describe('PDLC studio entry', () => {
     cleanup(); vi.unstubAllGlobals();
     delete window.__OD_PDLC_CONFIG__;
     document.documentElement.removeAttribute('data-pdlc');
+  });
+
+  it('uses the product language for the shared account menu', async () => {
+    renderView(<I18nProvider initial="en"><PdlcApp /></I18nProvider>);
+    await screen.findByTestId('studio-editor');
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'PDLC account' }), { button: 0, ctrlKey: false });
+    expect(await screen.findByRole('menuitem', { name: 'Sign out' })).toBeTruthy();
   });
 
   it('restores the shared session and shows the server-confirmed account', async () => {

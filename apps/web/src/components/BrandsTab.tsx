@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button } from '@open-design/components';
+import { Button } from '../pdlc/primitives';
 import type { BrandSummary, WorkspaceCollabContext } from '@open-design/contracts';
 import { useT } from '../i18n';
 import { navigate, useRoute } from '../router';

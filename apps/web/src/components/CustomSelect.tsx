@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './Icon';
+import { Select } from '@pdlc/ui/ui';
 
 export interface CustomSelectOption {
   value: string;
@@ -17,6 +18,7 @@ export interface CustomSelectGroup {
 export type CustomSelectItem = CustomSelectOption | CustomSelectGroup;
 
 interface Props {
+  id?: string;
   value: string;
   options: CustomSelectItem[];
   onChange: (value: string) => void;
@@ -55,7 +57,20 @@ function flattenOptions(items: CustomSelectItem[]): FlatOption[] {
   );
 }
 
-export function CustomSelect({
+/** Product option grouping is data adaptation; Base owns popup, focus and keyboard behavior. */
+export function CustomSelect(props: Props) {
+  if (typeof window !== 'undefined' && window.__OD_PDLC_CONFIG__) {
+    const options = props.options.flatMap(item => isGroup(item)
+      ? item.options.map(option => ({ ...option, label: `${item.label} — ${option.label}` })) : [item]);
+    return <Select value={props.value} options={options} onValueChange={props.onChange}
+      id={props.id} aria-label={props.ariaLabel} aria-labelledby={props.labelledBy} disabled={props.disabled}
+      placeholder={props.placeholder} title={props.title} onFocus={props.onFocus} className={props.className} />;
+  }
+  return <StandaloneSelect {...props} />;
+}
+
+function StandaloneSelect({
+  id,
   value,
   options,
   onChange,
@@ -272,7 +287,7 @@ export function CustomSelect({
         aria-controls={`${idBase}-menu`}
         aria-activedescendant={activeOptionId}
         aria-describedby={labelledBy}
-        aria-label={`${ariaLabel}: ${selectedLabel}`}
+        id={id} aria-label={`${ariaLabel}: ${selectedLabel}`}
         disabled={disabled}
         title={title}
         onClick={() => setOpen((current) => !current)}

@@ -8,7 +8,7 @@
 // a collapsed disclosure.
 
 import { useEffect, useState, type ReactNode } from 'react';
-import { Button } from '@open-design/components';
+import { Button } from '../pdlc/primitives';
 import type {
   InstalledPluginRecord,
   PluginConnectorRef,

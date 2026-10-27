@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import { Button } from '@open-design/components';
+import { Button } from '../pdlc/primitives';
 import { useI18n, useT, type Locale } from '../i18n';
 import {
   localizeSkillDescription,

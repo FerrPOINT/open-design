@@ -263,8 +263,8 @@ function daemonUrl(): URL | { error: string } {
 }
 
 function toolToken(): string | { error: string } {
-  const token = process.env.OD_TOOL_TOKEN;
-  if (!token) return { error: 'OD_TOOL_TOKEN is required' };
+  const token = process.env.OD_TOOL_TOKEN ?? process.env.PDLC_API_TOKEN;
+  if (!token) return { error: 'OD_TOOL_TOKEN or PDLC_API_TOKEN is required' };
   return token;
 }
 
@@ -2838,3 +2838,4 @@ export async function runConnectorsToolCli(args: string[]): Promise<ToolCliResul
     return fail(message);
   }
 }
+import { daemonFetch as fetch } from './daemon-fetch.js';

@@ -130,7 +130,7 @@ const SAFE_MCP_DAEMON_RETRY_CALLS = new Set([
 ]);
 
 function normalizeDaemonUrl(value: string | URL): string {
-  return String(value).replace(/\/$/, '');
+  return rememberDaemonUrl(String(value)).replace(/\/$/, '');
 }
 
 function isDaemonUnreachableResult(result: McpToolCallResult): boolean {
@@ -3599,3 +3599,4 @@ export {
   issuePluginWorkflowId,
   withActiveEcho,
 };
+import { daemonFetch as fetch, rememberDaemonUrl } from './daemon-fetch.js';

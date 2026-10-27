@@ -197,3 +197,4 @@ export async function runProjectHandoff(args: string[]): Promise<HandoffCliResul
     return fail(message);
   }
 }
+import { daemonFetch as fetch } from './daemon-fetch.js';
