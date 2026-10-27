@@ -11,9 +11,9 @@ URL: `http://127.0.0.3:8193/`. Production не изменялся.
 
 | Компонент | Проверенная версия |
 | --- | --- |
-| OpenDesign app code / OCI revision | `da00366c474ee1cded87762c40ada1fd652659e7` |
-| OpenDesign immutable image | `sha256:09d51d707c23461748dd02d3d73dc8a8306de701e1758168e34e3f19166db29a` |
-| Квалифицированный rollback baseline | `f670c702c0bc8139cd742b15bb6df414d9219040` / `sha256:f02e0517aa0ec6ee2d139999b91ab019cbf0720c58426b282e2dd646e0c59a36` |
+| OpenDesign app code / OCI revision | `bf65fc257c61163d226b802a2d6c2b53119632fe` |
+| OpenDesign immutable image | `sha256:3a8adfa4222abed71086a3c6d7c851200010fb3a4b1750d579598b3a3334003a` |
+| Квалифицированный rollback baseline | `da00366c474ee1cded87762c40ada1fd652659e7` / `sha256:09d51d707c23461748dd02d3d73dc8a8306de701e1758168e34e3f19166db29a` |
 | Base UI source pin | `de34459b2fcbb1a340c2d7379c401b6912f755b3` |
 | Base UI archive / fingerprint | [vendor metadata](../vendor/base-ui.json) |
 | Дополнение operator | `50d4d257858a475f965d2e48db7440a008090dcc` |
@@ -38,7 +38,12 @@ web export и Linux daemon image. После последних изменени
 Base buttons. Регрессия Escape сначала воспроизведена красным тестом с настоящим
 Base Select. На `da00366` прошли focused UI/style проверки, guard, web typecheck,
 общий workspace typecheck и полная production image build. Код авторизации после
-`f670c70` не менялся.
+`f670c70` не менялся. В `bf65fc2` завершён перенос действий трёх подтверждений
+на Base, включая destructive variant и checkbox. Прошли 59 сценариев потребителей
+(один upstream-сценарий skipped), затем пять adapter/confirmation тестов, guard,
+workspace typecheck и production image build. Первый повтор typecheck дал TS2307
+в неизменённом standalone; узкий прогон и полный повтор на том же commit прошли
+без изменения исходников этого пакета.
 Полные daemon/web suites локально не запускались согласно AGENTS.md.
 
 Проверены CLI transport/exit, URL loopback, operation scopes, MCP forwarding,
@@ -87,9 +92,10 @@ mode, UID/GID; рабочий том не изменялся. Контрольн
 | Restore receipt | `94ea811bc1dbe272ac0e02d749e0812fd2714d04854866dd7420720f91ff31ad` |
 | Контрольный HTML | `8bd1646ac7fcefeedc328957d6d72ebca6527858fcf9358eb2fc9ff03d7da2c0` |
 | Полный OCI archive первого квалифицированного образа | `63caddb3999ea1623072aa5422c3f898ffe9cbedb838769c0e68f00b64e6f3f5` |
-| Полный OCI archive финального образа | `bf2530fa89fe2bd05834400b22be64b5cb05a3cee6aea824ce36d5124efce536` |
+| Полный OCI archive rollback baseline `da00366` | `bf2530fa89fe2bd05834400b22be64b5cb05a3cee6aea824ce36d5124efce536` |
+| Полный OCI archive финального образа `bf65fc2` | `23021523a3e7ffaacea66f356236edb82f83a41ad09cdc18d7be63d6e55cb8c6` |
 
-Image archive rollback baseline — 608016896 bytes, финального — 608013824 bytes;
+Image archive rollback baseline — 608013824 bytes, финального — 608002560 bytes;
 в каждом проверены hash/size всех 24 OCI blobs.
 Архивы, планы, credentials и rollback journals хранятся приватно вне Git.
 Daemon data paths определены только в [корневом контракте](../AGENTS.md#daemon-data-directory-contract).
@@ -98,8 +104,8 @@ Daemon data paths определены только в [корневом кон�
 OpenDesign недоступным адресом. API вернул 503, native Windows CLI — JSON/exit 1
 без аварии, MCP отклонил инструмент. После намеренного отказа acceptance callback
 operator восстановил точные исходные bundle bytes, затем scoped Start вернул
-здоровую студию на прежний digest `f670c70` с прежним HTML. Финальный кандидат
-`da00366` имеет другой digest. Это проверка **image/config отката на предыдущую
+здоровую студию на прежний digest `da00366` с прежним HTML. Финальный кандидат
+`bf65fc2` имеет другой digest. Это проверка **image/config отката на предыдущую
 квалифицированную поставку**, без миграции или отката данных.
 
 При ранней попытке откатиться на промежуточный `d968d68` обнаружены отсутствующие
