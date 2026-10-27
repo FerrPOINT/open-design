@@ -7,7 +7,8 @@ import { I18nProvider } from '../src/i18n';
 import type { ReactNode } from 'react';
 const render = (view: ReactNode) => renderView(<I18nProvider initial="ru">{view}</I18nProvider>);
 
-vi.mock('../src/App', () => ({ App: () => <div data-testid="studio-editor">Editor</div> }));
+vi.mock('../src/App', () => ({ App: ({ platformSubject }: { platformSubject?: string }) =>
+  <div data-testid="studio-editor" data-platform-subject={platformSubject}>Editor</div> }));
 vi.mock('@pdlc/ui/sso', async (original) => ({
   ...await original<typeof import('@pdlc/ui/sso')>(),
   restoreSso: vi.fn(), completeSso: vi.fn(), beginSso: vi.fn(), endSso: vi.fn(),
@@ -76,6 +77,7 @@ describe('PDLC studio entry', () => {
   it('restores the shared session and shows the server-confirmed account', async () => {
     render(<PdlcApp />);
     await screen.findByTestId('studio-editor');
+    expect(screen.getByTestId('studio-editor')).toHaveAttribute('data-platform-subject', 'alice');
     expect(screen.getByRole('button', { name: 'Аккаунт PDLC' }).textContent).toBe('Алиса');
     expect(beginSso).not.toHaveBeenCalled();
     expect(fetcher).toHaveBeenCalledWith('/api/pdlc/session', expect.objectContaining({

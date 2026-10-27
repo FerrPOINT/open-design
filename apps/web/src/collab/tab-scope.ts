@@ -21,6 +21,8 @@ export interface TabScopeLoginStatus {
 export const UNSET_ACCOUNT_BUCKET = '__unset__';
 
 export interface TabIdentityScopeInputs {
+  /** Server-confirmed PDLC account for local-studio tab state, not Cloud membership. */
+  platformSubject?: string;
   /** App.tsx's merged AMR login status, or `null` before the first read
    *  completes. */
   amrLoginStatus: TabScopeLoginStatus | null;
@@ -119,6 +121,10 @@ export interface TabIdentityScopeResult {
 export function deriveTabIdentityScope(
   inputs: TabIdentityScopeInputs,
 ): TabIdentityScopeResult {
+  if (inputs.platformSubject) {
+    const account = `pdlc:${encodeURIComponent(inputs.platformSubject)}`;
+    return { scopeKey: `${account}::none`, nextAccountBucket: account, nextWorkspaceBucket: 'none' };
+  }
   const {
     amrLoginStatus,
     workspaceContext,

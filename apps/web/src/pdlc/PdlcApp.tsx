@@ -249,7 +249,7 @@ function PlatformStudio({ config }: { config: PdlcConfiguration }) {
               onSelect={() => void logout()}>{locale === 'ru' ? 'Выйти' : 'Sign out'}</DropdownMenuItem>
           </DropdownMenuContent></DropdownMenu>} />
         <div className="pdlc-studio-content">
-          {phase === 'ready' && token ? <RequireApplicationAccess application={config.applicationKey}><App /></RequireApplicationAccess>
+          {phase === 'ready' && token ? <RequireApplicationAccess application={config.applicationKey}><App platformSubject={authenticated?.identity.subject} /></RequireApplicationAccess>
           : phase === 'login'
             ? <PlatformLogin pending={ending} error={error} onSignIn={login} />
             : phase === 'error' ? <ErrorState message={error ?? 'Не удалось проверить доступ.'}

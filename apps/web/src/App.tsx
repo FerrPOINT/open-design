@@ -947,7 +947,12 @@ function homeCreateFailureNotice(
   return fallback;
 }
 
-export function App() {
+interface AppProps {
+  /** Confirmed platform identity partitions local tabs without a Cloud session. */
+  platformSubject?: string;
+}
+
+export function App({ platformSubject }: AppProps = {}) {
   // `reducedMotion="user"` makes every motion/react component honor the OS
   // `prefers-reduced-motion` setting: transform/layout animations are zeroed
   // out while opacity-only changes are kept. The CSS `@media (prefers-reduced-
@@ -958,13 +963,13 @@ export function App() {
     <MotionConfig reducedMotion="user">
       <IframeKeepAliveProvider>
         <WorkspaceMemberDirectoryPreloader />
-        <AppInner />
+        <AppInner platformSubject={platformSubject} />
       </IframeKeepAliveProvider>
     </MotionConfig>
   );
 }
 
-function AppInner() {
+function AppInner({ platformSubject }: AppProps) {
   const { t, locale } = useI18n();
   const iframeKeepAlivePool = useIframeKeepAlivePool();
   const clientType = useMemo(() => detectClientType(), []);
@@ -1899,6 +1904,7 @@ function AppInner() {
     nextWorkspaceBucket: nextTabScopeWorkspaceId,
     nextAccountBucket: nextTabScopeAccountId,
   } = deriveTabIdentityScope({
+    platformSubject,
     amrLoginStatus,
     workspaceContext,
     workspaceContextLoading,
