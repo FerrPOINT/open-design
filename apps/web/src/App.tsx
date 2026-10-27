@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
 import { usePdlcReadiness } from './pdlc/readiness';
+import { isPdlcMode } from './pdlc/config';
 import { AnimatePresence, motion, MotionConfig } from 'motion/react';
 import { Button } from '@open-design/components';
 import { reportAgentDetectDiagnostics } from './analytics/agent-detect';
@@ -5856,7 +5857,7 @@ function AppInner() {
           (`opend.home.*`), so the home view is where they belong: not over a
           project workbench, not over another entry tab, and — since account
           restoration can finish while login is still up — not over onboarding. */}
-      {route.kind === 'home' && route.view === 'home' && (
+      {!isPdlcMode() && route.kind === 'home' && route.view === 'home' && (
         <>
           <TestCampaignModal
             authenticated={isAmrSessionAuthenticated(amrLoginStatus)}
@@ -5873,12 +5874,12 @@ function AppInner() {
       {/* Mounted at shell level, outside the route views, so a survey armed by
           an export inside a project stays on screen when the user navigates
           back to home. */}
-      <ExperienceSurvey
+      {!isPdlcMode() && <ExperienceSurvey
         metricsConsent={config.telemetry?.metrics === true}
         onExposure={() => trackExperienceSurveyShown(analytics.track)}
         onDismiss={() => trackExperienceSurveyDismissed(analytics.track)}
         onSubmit={(answers) => trackExperienceSurveySent(analytics.track, answers)}
-      />
+      />}
       <AmrArtifactUpgradeGate
         cloudModelSelected={config.mode === 'daemon' && config.agentId === 'amr'}
         homeVisible={route.kind === 'home' && route.view === 'home'}

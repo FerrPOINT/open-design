@@ -2771,7 +2771,7 @@ export function EntryNavRail({
             className="entry-nav-rail__account-dock entry-nav-rail__account-dock--local"
             data-testid="entry-nav-local-account-dock"
           >
-            <RailSocialRow page={analyticsPage} dimensions={workspaceDimensions} />
+            {!isPdlcMode() && <RailSocialRow page={analyticsPage} dimensions={workspaceDimensions} />}
             <div className="entry-nav-rail__account">
               <button
                 type="button"
@@ -2796,7 +2796,7 @@ export function EntryNavRail({
                 </span>
                 <span className="entry-nav-rail__account-name">{t('entry.localAccountName')}</span>
               </button>
-              <button
+              {!isPdlcMode() && <button
                 type="button"
                 ref={messageCenterRailRef}
                 className="entry-nav-rail__account-bell"
@@ -2818,7 +2818,7 @@ export function EntryNavRail({
                 {messageUnreadCount > 0 ? (
                   <span className="entry-nav-rail__menu-item-dot" aria-hidden />
                 ) : null}
-              </button>
+              </button>}
             </div>
           </div>
         </div>
@@ -2829,7 +2829,7 @@ export function EntryNavRail({
           bell above is its opener). Signed-in mounts move into
           `EntryTopRightCluster` — context-gating both sides is what keeps
           exactly one panel (and one unread poller) alive. */}
-      {context ? null : (
+      {context || isPdlcMode() ? null : (
         <MessageCenter
           hideTrigger
           returnFocusRef={messageCenterRailRef}
