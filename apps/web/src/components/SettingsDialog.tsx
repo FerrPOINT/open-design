@@ -3467,7 +3467,8 @@ export function SettingsDialog({
   // close affordances are: top-right X · backdrop click · Escape.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key !== 'Escape') return;
+      // Base overlays consume Escape before the enclosing settings page.
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
       onClose();
     }
     document.addEventListener('keydown', onKey);
