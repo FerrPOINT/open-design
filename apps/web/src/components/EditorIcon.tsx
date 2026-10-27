@@ -5,6 +5,7 @@
 // artwork (Explorer / File Manager) keep a drawn glyph.
 
 import type { HostEditorId } from '@open-design/contracts';
+import type { JSX } from 'react';
 
 interface Props {
   editorId: HostEditorId | string;

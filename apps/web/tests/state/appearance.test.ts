@@ -29,6 +29,7 @@ describe('resolveAccentColor', () => {
 
 describe('applyAppearanceToDocument', () => {
   afterEach(() => {
+    document.documentElement.removeAttribute('data-pdlc');
     document.documentElement.removeAttribute('data-theme');
     document.documentElement.style.removeProperty('--accent');
     document.documentElement.style.removeProperty('--accent-strong');
@@ -43,6 +44,15 @@ describe('applyAppearanceToDocument', () => {
     expect(document.documentElement.getAttribute('data-theme')).toBe('light');
     expect(document.documentElement.style.getPropertyValue('--accent')).toBe('#4f46e5');
     expect(document.documentElement.style.getPropertyValue('--accent-hover')).toContain('#4f46e5');
+  });
+
+  it('preserves the Base theme and semantic accent in platform mode', () => {
+    document.documentElement.setAttribute('data-pdlc', '');
+    document.documentElement.setAttribute('data-theme', 'gray');
+    document.documentElement.style.setProperty('--accent', 'var(--color-accent)');
+    applyAppearanceToDocument({ accentColor: '#00ff00' });
+    expect(document.documentElement.getAttribute('data-theme')).toBe('gray');
+    expect(document.documentElement.style.getPropertyValue('--accent')).toBe('var(--color-accent)');
   });
 
   it('does not apply appearance colors to global background variables', () => {

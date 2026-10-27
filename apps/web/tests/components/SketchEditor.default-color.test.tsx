@@ -29,6 +29,7 @@ vi.mock('@excalidraw/excalidraw', async () => {
         {
           'data-testid': 'excalidraw',
           'data-stroke': initialData?.appState?.currentItemStrokeColor,
+          'data-theme': props.theme,
         },
         props.children,
       );
@@ -63,15 +64,16 @@ describe('SketchEditor default color', () => {
   afterEach(() => {
     cleanup();
     document.documentElement.removeAttribute('data-theme');
+    document.documentElement.removeAttribute('data-pdlc');
     vi.restoreAllMocks();
   });
 
-  it('starts with a light pen color under the dark theme', () => {
+  it('keeps canonical scene ink for Excalidraw to transform under the dark theme', () => {
     document.documentElement.setAttribute('data-theme', 'dark');
 
     renderEditor();
 
-    expect(document.querySelector('[data-testid="excalidraw"]')?.getAttribute('data-stroke')).toBe('#ffffff');
+    expect(document.querySelector('[data-testid="excalidraw"]')?.getAttribute('data-stroke')).toBe('#1c1b1a');
   });
 
   it('keeps the existing default pen color under the light theme', () => {
@@ -80,5 +82,13 @@ describe('SketchEditor default color', () => {
     renderEditor();
 
     expect(document.querySelector('[data-testid="excalidraw"]')?.getAttribute('data-stroke')).toBe('#1c1b1a');
+  });
+  it('uses the dark canvas renderer with canonical scene ink for the platform gray theme', () => {
+    document.documentElement.setAttribute('data-pdlc', '');
+    document.documentElement.setAttribute('data-theme', 'gray');
+    renderEditor();
+    const editor = document.querySelector('[data-testid="excalidraw"]');
+    expect(editor?.getAttribute('data-theme')).toBe('dark');
+    expect(editor?.getAttribute('data-stroke')).toBe('#1c1b1a');
   });
 });

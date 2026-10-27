@@ -17,7 +17,7 @@ import type { OrderedExcalidrawElement } from '@excalidraw/excalidraw/element/ty
 import { useI18n, type Locale } from '../i18n';
 import { Icon } from './Icon';
 import { Toast } from './Toast';
-import { readDefaultSketchToolColor } from './sketch-colors';
+import { DEFAULT_SKETCH_LIGHT_TOOL_COLOR } from './sketch-colors';
 import {
   emptySketchScene,
   sanitizeExcalidrawAppState,
@@ -108,7 +108,7 @@ export function SketchEditor({
   const [exporting, setExporting] = useState(false);
   const [theme, setTheme] = useState(readExcalidrawTheme);
   const [toast, setToast] = useState<SketchToastState | null>(null);
-  const savedTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const savedTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const onSceneChangeRef = useLatestRef(onSceneChange);
   const onClearRef = useLatestRef(onClear);
   const onSaveRef = useLatestRef(onSave);
@@ -481,7 +481,8 @@ function buildInitialData(
     appState: {
       ...sanitizeExcalidrawAppState(scene.appState),
       name: fileName,
-      currentItemStrokeColor: readDefaultSketchToolColor(),
+      // Excalidraw applies its own dark-theme color transform to scene colors.
+      currentItemStrokeColor: DEFAULT_SKETCH_LIGHT_TOOL_COLOR,
       viewBackgroundColor: typeof scene.appState?.viewBackgroundColor === 'string'
         ? scene.appState.viewBackgroundColor
         : '#ffffff',
@@ -1076,7 +1077,9 @@ function validateSketchEmbeddableUrl(link: string): boolean {
 
 function readExcalidrawTheme(): 'light' | 'dark' {
   if (typeof document === 'undefined') return 'light';
-  return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+  const root = document.documentElement;
+  const theme = root.getAttribute('data-theme');
+  return theme === 'dark' || (theme === 'gray' && root.hasAttribute('data-pdlc')) ? 'dark' : 'light';
 }
 
 function cloneJson<T>(value: unknown, fallback: T): T {

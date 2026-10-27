@@ -4,6 +4,7 @@
 // that in the URL is the simplest way to make it deep-linkable.
 
 import { useSyncExternalStore } from 'react';
+import { getPlatformProduct } from '@pdlc/ui/platform';
 import { LIBRARY_UI_VISIBLE } from './features/libraryUi';
 
 // Entry-shell sub-views. The home/project landing renders one of three
@@ -245,6 +246,7 @@ let guardedNavigationSequence = 0;
 
 interface AcceptedHistoryLocation {
   pathname: string;
+  url: string;
   index: number;
 }
 
@@ -280,6 +282,12 @@ async function navigationGuardsAllow(): Promise<boolean> {
   return true;
 }
 
+/** The host and product navigation share the editor's actual safe-exit rule. */
+export async function confirmProductLeave(): Promise<boolean> {
+  const sequence = ++guardedNavigationSequence;
+  return await navigationGuardsAllow() && sequence === guardedNavigationSequence;
+}
+
 function runGuardedNavigation(action: (sequence: number) => void): void {
   // Every newer navigation intent invalidates an older async guard, including
   // the no-guard fast path and a same-path no-op.
@@ -300,14 +308,16 @@ function readHistoryIndex(): number {
 }
 
 function readHistoryLocation(): AcceptedHistoryLocation {
-  return { pathname: window.location.pathname, index: readHistoryIndex() };
+  return { pathname: window.location.pathname,
+    url: window.location.pathname + window.location.search + window.location.hash,
+    index: readHistoryIndex() };
 }
 
 function isSameHistoryLocation(
   left: AcceptedHistoryLocation | null,
   right: AcceptedHistoryLocation,
 ): boolean {
-  return left?.pathname === right.pathname && left.index === right.index;
+  return left?.url === right.url && left.index === right.index;
 }
 
 function repairHistoryTraversal(
@@ -333,7 +343,7 @@ function repairHistoryTraversal(
 
   // A foreign/deep-link entry may not carry a distinct odIndex. Preserve the
   // accepted route without recursively dispatching another popstate.
-  window.history.pushState({ odIndex: previous.index }, '', previous.pathname);
+  window.history.pushState({ odIndex: previous.index }, '', previous.url);
   acceptedHistoryLocation = previous;
 }
 
@@ -420,19 +430,30 @@ interface NavigationOptions {
   onCommit?: () => void;
 }
 
-function commitNavigation(route: Route, opts: NavigationOptions = {}): void {
-  const target = buildPath(route);
-  if (target === window.location.pathname) return;
+const embeddedEntries: string[] = [];
+
+function commitPath(target: string, opts: NavigationOptions = {}, hostReplace = opts.replace): void {
+  const current = window.location.pathname + window.location.search + window.location.hash;
+  if (target === current) return;
   const index = readHistoryIndex();
+  const product = getPlatformProduct();
+  if (product) {
+    if (embeddedEntries.length === 0) embeddedEntries.push(current);
+    if (opts.replace) embeddedEntries[embeddedEntries.length - 1] = target;
+    else embeddedEntries.push(target);
+  }
   // `replace` keeps the current depth (it swaps the entry in place); a push
   // adds one level so the entry we are leaving becomes the "previous layer".
   const nextState: HistoryState = { odIndex: opts.replace ? index : index + 1 };
-  if (opts.replace) {
+  if (opts.replace || product) {
     window.history.replaceState(nextState, '', target);
   } else {
     window.history.pushState(nextState, '', target);
   }
   acceptedHistoryLocation = readHistoryLocation();
+  // A child pushState would add a second entry to joint browser history.
+  // Only Base appends public entries; the product retains its local back stack.
+  product?.reportRoute(target, hostReplace);
   opts.onCommit?.();
   queueMicrotask(() => {
     dispatchingCommittedPopstate = true;
@@ -442,6 +463,19 @@ function commitNavigation(route: Route, opts: NavigationOptions = {}): void {
       dispatchingCommittedPopstate = false;
     }
   });
+}
+
+function commitNavigation(route: Route, opts: NavigationOptions = {}): void {
+  commitPath(buildPath(route), opts);
+}
+
+/** URL adapter for shared UI; preserves query/fragment without a second router. */
+export function navigatePath(path: string, opts: NavigationOptions = {}): void {
+  const url = new URL(path, window.location.origin);
+  if (url.origin !== window.location.origin || url.username || url.password || path.includes('\\')) {
+    throw new Error('Navigation must stay inside OpenDesign');
+  }
+  runGuardedNavigation(() => commitPath(url.pathname + url.search + url.hash, opts));
 }
 
 export function navigate(route: Route, opts: NavigationOptions = {}): void {
@@ -456,6 +490,11 @@ export function navigate(route: Route, opts: NavigationOptions = {}): void {
 // navigate to `fallback` instead of letting `history.back()` escape the app.
 export function goBack(fallback: Route): void {
   runGuardedNavigation((sequence) => {
+    if (getPlatformProduct()) {
+      embeddedEntries.pop();
+      commitPath(embeddedEntries.at(-1) ?? buildPath(fallback), { replace: true }, false);
+      return;
+    }
     const index = readHistoryIndex();
     if (index > 0) {
       approvedHistoryTraversal = { expectedIndex: index - 1, sequence };
@@ -474,8 +513,9 @@ function getRouteSnapshot(): Route {
   // resolves. Keep render-time reads on the last accepted route until the
   // coordinator explicitly publishes the traversal.
   const pathname = acceptedHistoryLocation?.pathname ?? window.location.pathname;
-  if (cachedPathname !== pathname || cachedRoute === null) {
-    cachedPathname = pathname;
+  const location = acceptedHistoryLocation?.url ?? window.location.pathname + window.location.search + window.location.hash;
+  if (cachedPathname !== location || cachedRoute === null) {
+    cachedPathname = location;
     cachedRoute = parseRoute(pathname);
   }
   return cachedRoute;

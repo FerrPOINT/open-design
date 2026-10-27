@@ -1,9 +1,9 @@
+// @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
 import type { CSSProperties } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { Simulate } from 'react-dom/test-utils';
-import { JSDOM } from 'jsdom';
+import { fireEvent } from '@testing-library/react';
 import { ManualEditPanel, emptyManualEditDraft, manualEditPatchSummary, normalizeManualEditStyles, type ManualEditDraft } from '../../src/components/ManualEditPanel';
 import type { ProjectDesignTokenSuggestion, ProjectDesignTokenSuggestionProp } from '../../src/providers/registry';
 import { emptyManualEditStyles, type ManualEditPatch, type ManualEditStyles, type ManualEditTarget } from '../../src/edit-mode/types';
@@ -40,26 +40,19 @@ type OnResetDraft = () => void;
 type OnHistoryAction = () => void;
 
 describe('ManualEditPanel', () => {
-  let dom: JSDOM;
   let host: HTMLDivElement;
   let root: Root;
 
   beforeEach(() => {
-    dom = new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>');
-    globalThis.window = dom.window as unknown as Window & typeof globalThis;
-    globalThis.document = dom.window.document;
-    globalThis.HTMLElement = dom.window.HTMLElement;
     (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-    host = dom.window.document.querySelector('#root') as HTMLDivElement;
+    host = document.createElement('div');
+    document.body.append(host);
     root = createRoot(host);
   });
 
   afterEach(() => {
     act(() => root.unmount());
-    dom.window.close();
-    Reflect.deleteProperty(globalThis, 'window');
-    Reflect.deleteProperty(globalThis, 'document');
-    Reflect.deleteProperty(globalThis, 'HTMLElement');
+    host.remove();
     Reflect.deleteProperty(globalThis, 'IS_REACT_ACT_ENVIRONMENT');
   });
 
@@ -135,7 +128,7 @@ describe('ManualEditPanel', () => {
     if (!deleteButton) throw new Error('Delete button not found');
 
     act(() => {
-      deleteButton.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+      deleteButton.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
     });
 
     expect(footer?.contains(deleteButton)).toBe(true);
@@ -157,8 +150,8 @@ describe('ManualEditPanel', () => {
     if (!undo || !redo) throw new Error('History controls not found');
 
     act(() => {
-      undo.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
-      redo.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+      undo.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+      redo.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
     });
 
     expect(undo.disabled).toBe(false);
@@ -180,9 +173,9 @@ describe('ManualEditPanel', () => {
     if (!reset || !cancel || !save) throw new Error('Footer action buttons not found');
 
     act(() => {
-      reset.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
-      cancel.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
-      save.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+      reset.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+      cancel.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+      save.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
     });
 
     expect(onResetDraft).toHaveBeenCalledTimes(1);
@@ -198,8 +191,7 @@ describe('ManualEditPanel', () => {
     if (!textArea) throw new Error('Content textarea not found');
 
     act(() => {
-      textArea.value = 'Panel edited copy';
-      Simulate.change(textArea);
+      fireEvent.change(textArea, { target: { value: 'Panel edited copy' } });
     });
 
     expect(onDraftChange).toHaveBeenCalledWith(expect.objectContaining({ text: 'Panel edited copy' }));
@@ -226,7 +218,7 @@ describe('ManualEditPanel', () => {
 
     act(() => {
       fontSelect.value = 'Georgia, serif';
-      fontSelect.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+      fontSelect.dispatchEvent(new window.Event('change', { bubbles: true }));
     });
 
     expect(onDraftChange).toHaveBeenCalledWith(expect.objectContaining({
@@ -270,9 +262,9 @@ describe('ManualEditPanel', () => {
     const trackingDecrease = stepper('Letter spacing', 'decrease');
 
     act(() => {
-      sizeIncrease.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
-      lineIncrease.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
-      trackingDecrease.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+      sizeIncrease.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+      lineIncrease.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+      trackingDecrease.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
     });
 
     expect(onStyleChange).toHaveBeenCalledWith('hero-title', { fontSize: '33px' }, 'Style: Hero Title');
@@ -356,7 +348,7 @@ describe('ManualEditPanel', () => {
     const lineInput = rowInput('Line height');
 
     act(() => {
-      lineInput.dispatchEvent(new dom.window.FocusEvent('blur', { bubbles: true }));
+      lineInput.dispatchEvent(new window.FocusEvent('blur', { bubbles: true }));
     });
 
     expect(onError).not.toHaveBeenCalled();
@@ -378,8 +370,7 @@ describe('ManualEditPanel', () => {
     const lineInput = rowInput('Line height');
 
     act(() => {
-      lineInput.value = '49px';
-      Simulate.change(lineInput);
+      fireEvent.change(lineInput, { target: { value: '49px' } });
     });
 
     expect(onError).toHaveBeenCalledWith('');
@@ -410,12 +401,12 @@ describe('ManualEditPanel', () => {
     if (!bgSwatch) throw new Error('Background swatch not found');
 
     act(() => {
-      bgSwatch.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+      bgSwatch.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
     });
     const colorTile = host.querySelector('button[aria-label="#3b82f6"]') as HTMLButtonElement | null;
     if (!colorTile) throw new Error('Background color tile not found');
     act(() => {
-      colorTile.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+      colorTile.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
     });
 
     expect(onStyleChange).toHaveBeenCalledWith('__body__', { backgroundColor: '#3b82f6' }, 'Page styles');
@@ -440,7 +431,7 @@ describe('ManualEditPanel', () => {
 
     act(() => {
       fontSelect.value = 'Georgia, serif';
-      fontSelect.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+      fontSelect.dispatchEvent(new window.Event('change', { bubbles: true }));
     });
 
     expect(onStyleChange).toHaveBeenCalledWith('__body__', { fontFamily: 'Georgia, serif' }, 'Page styles');
@@ -476,7 +467,7 @@ describe('ManualEditPanel', () => {
 
     act(() => {
       fontSelect.value = '';
-      fontSelect.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+      fontSelect.dispatchEvent(new window.Event('change', { bubbles: true }));
     });
 
     expect(onStyleChange).toHaveBeenCalledWith('__body__', { fontFamily: '' }, 'Page styles');
@@ -511,7 +502,7 @@ describe('ManualEditPanel', () => {
     expect(align.disabled).toBe(false);
     act(() => {
       align.value = 'center';
-      align.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+      align.dispatchEvent(new window.Event('change', { bubbles: true }));
     });
     expect(onStyleChange).toHaveBeenCalledWith('hero-title', { textAlign: 'center' }, 'Style: Hero Title');
 
@@ -546,9 +537,9 @@ describe('ManualEditPanel', () => {
     expect(Array.from(rowSelect('Align').options).map((option) => option.value)).toContain('baseline');
 
     act(() => {
-      gapIncrease.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+      gapIncrease.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
       directionSelect.value = 'column';
-      directionSelect.dispatchEvent(new dom.window.Event('change', { bubbles: true }));
+      directionSelect.dispatchEvent(new window.Event('change', { bubbles: true }));
     });
 
     expect(onStyleChange).toHaveBeenCalledWith('hero-title', { gap: '9px' }, 'Style: Hero Title');
@@ -573,14 +564,13 @@ describe('ManualEditPanel', () => {
 
     const topInput = quadCellInput('Padding', 'Top');
     act(() => {
-      topInput.value = '24';
-      Simulate.change(topInput);
+      fireEvent.change(topInput, { target: { value: '24' } });
     });
     expect(onStyleChange).toHaveBeenCalledWith('hero-title', { paddingTop: '24px' }, 'Style: Hero Title');
 
     // Each side is its own longhand — nudging Right must not touch the others.
     act(() => {
-      stepper('Right', 'increase').dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+      stepper('Right', 'increase').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
     });
     expect(onStyleChange).toHaveBeenCalledWith('hero-title', { paddingRight: '9px' }, 'Style: Hero Title');
     expect(onStyleChange).not.toHaveBeenCalledWith(
@@ -605,8 +595,7 @@ describe('ManualEditPanel', () => {
 
     const bottomInput = quadCellInput('Margin', 'Bottom');
     act(() => {
-      bottomInput.value = '4';
-      Simulate.change(bottomInput);
+      fireEvent.change(bottomInput, { target: { value: '4' } });
     });
     expect(onStyleChange).toHaveBeenCalledWith('hero-title', { marginBottom: '4px' }, 'Style: Hero Title');
 
@@ -614,7 +603,7 @@ describe('ManualEditPanel', () => {
     // the row stays readable without expanding it.
     const head = quadRow('Margin').querySelector('.cc-quad-head') as HTMLButtonElement;
     act(() => {
-      head.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+      head.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
     });
     expect(quadRow('Margin').querySelector('.cc-quad-grid')).toBeNull();
     expect(quadRow('Margin').querySelector('em')?.textContent).toBe('12');
@@ -626,8 +615,7 @@ describe('ManualEditPanel', () => {
 
     const borderWidth = rowInput('Border width');
     act(() => {
-      borderWidth.value = '3';
-      Simulate.change(borderWidth);
+      fireEvent.change(borderWidth, { target: { value: '3' } });
     });
 
     expect(onStyleChange).toHaveBeenCalledWith(
@@ -645,7 +633,7 @@ describe('ManualEditPanel', () => {
     });
 
     act(() => {
-      Simulate.focus(rowInput('Text color'));
+      fireEvent.focus(rowInput('Text color'));
     });
 
     expect(onInspectValueSelect).toHaveBeenCalledWith('color', '#111111');
@@ -672,7 +660,7 @@ describe('ManualEditPanel', () => {
     });
 
     act(() => {
-      Simulate.focus(rowInput('Font size'));
+      fireEvent.focus(rowInput('Font size'));
     });
 
     expect(onInspectValueSelect).toHaveBeenCalledWith('fontSize', '18px');
@@ -690,7 +678,7 @@ describe('ManualEditPanel', () => {
     });
 
     act(() => {
-      Simulate.focus(rowInput('Text color'));
+      fireEvent.focus(rowInput('Text color'));
     });
 
     const chips = Array.from(host.querySelectorAll('.cc-suggest-chip'));
@@ -700,7 +688,7 @@ describe('ManualEditPanel', () => {
     expect(chips[0]?.querySelector('.cc-suggest-swatch')).not.toBeNull();
 
     act(() => {
-      chips[1]!.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+      chips[1]!.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
     });
 
     expect(onApplyTokenSuggestion).toHaveBeenCalledWith('color', '#667085');
@@ -714,12 +702,12 @@ describe('ManualEditPanel', () => {
     });
 
     act(() => {
-      Simulate.focus(rowInput('Border width'));
+      fireEvent.focus(rowInput('Border width'));
     });
     const chip = host.querySelector('.cc-suggest-chip') as HTMLButtonElement | null;
     if (!chip) throw new Error('Border width reference chip not found');
     act(() => {
-      chip.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+      chip.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
     });
 
     expect(onApplyTokenSuggestion).toHaveBeenCalledWith('borderTopWidth', '1px');
@@ -728,14 +716,14 @@ describe('ManualEditPanel', () => {
   it('distinguishes loading reference values from having none', () => {
     renderPanel({ tokenSuggestionsLoading: true });
     act(() => {
-      Simulate.focus(rowInput('Text color'));
+      fireEvent.focus(rowInput('Text color'));
     });
     expect(host.querySelector('.cc-suggest-empty')?.textContent).toBe('Loading…');
     expect(host.querySelector('.cc-suggest-chip')).toBeNull();
 
     renderPanel({ tokenSuggestions: [] });
     act(() => {
-      Simulate.focus(rowInput('Text color'));
+      fireEvent.focus(rowInput('Text color'));
     });
     expect(host.querySelector('.cc-suggest-empty')?.textContent).toBe('No matching reference values');
   });
@@ -745,7 +733,7 @@ describe('ManualEditPanel', () => {
       tokenSuggestions: [tokenSuggestion({ prop: 'color', token: '--brand-ink', value: '#101828' })],
     });
     act(() => {
-      Simulate.focus(rowInput('Text color'));
+      fireEvent.focus(rowInput('Text color'));
     });
     expect(host.querySelector('.cc-suggest')).not.toBeNull();
 
@@ -765,7 +753,7 @@ describe('ManualEditPanel', () => {
     });
 
     act(() => {
-      Simulate.focus(rowInput('Opacity'));
+      fireEvent.focus(rowInput('Opacity'));
     });
 
     expect(host.querySelector('.cc-suggest')).toBeNull();

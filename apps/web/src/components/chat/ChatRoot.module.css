@@ -15,6 +15,15 @@
  * 暗色作用域里设计稿没给值的,按「同值」处理,不自行发明。
  */
 
+/* Platform surfaces follow Base; standalone retains the upstream palette. */
+:global(html[data-pdlc]) .vars,
+:global(html[data-pdlc]) .root {
+  --chat-floating-card-bg: var(--bg-panel);
+  --chat-floating-card-text: var(--text-strong);
+  --chat-confirm-surface: var(--bg-panel);
+  --chat-plan-current-text: var(--text-strong);
+}
+
 .vars,
 .root {
 

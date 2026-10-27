@@ -76,6 +76,8 @@ export function applyAppearanceToDocument({
   accentColor?: string;
 }): void {
   const root = document.documentElement;
+  // The Base ThemeProvider owns platform appearance, including pre-paint setup.
+  if (root.hasAttribute('data-pdlc')) return;
   root.setAttribute('data-theme', FORCED_APP_THEME);
   // Desktop shell: keep the native window appearance (the macOS vibrancy
   // glass material) in step with the app theme. Without this the glass

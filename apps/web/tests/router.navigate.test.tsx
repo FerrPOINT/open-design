@@ -4,7 +4,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { useEffect, useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { goBack, navigate, registerNavigationGuard, useRoute } from '../src/router';
+import { confirmProductLeave, goBack, navigate, navigatePath, registerNavigationGuard, useRoute } from '../src/router';
 
 function RouteLabel() {
   const route = useRoute();
@@ -58,6 +58,51 @@ describe('navigate / useRoute timing', () => {
     cleanup();
     consoleError.mockRestore();
     window.history.replaceState(null, '', '/');
+  });
+
+  it('preserves query and fragment through the shared UI URL adapter', async () => {
+    render(<RouteLabel />);
+    act(() => navigatePath('/projects?filter=active#recent'));
+    await flushMicrotasks();
+    expect(window.location.pathname + window.location.search + window.location.hash)
+      .toBe('/projects?filter=active#recent');
+    expect(screen.getByTestId('route-label').textContent).toBe('projects');
+    expect(() => navigatePath('https://foreign.example/projects')).toThrow();
+  });
+
+  it('uses the same editor guard for host leave and local navigation', async () => {
+    const guard = vi.fn(() => false);
+    const unregister = registerNavigationGuard(guard);
+    expect(await confirmProductLeave()).toBe(false);
+    navigatePath('/projects');
+    await flushMicrotasks();
+    expect(window.location.pathname).toBe('/');
+    expect(guard).toHaveBeenCalledTimes(2);
+    unregister();
+    expect(await confirmProductLeave()).toBe(true);
+  });
+
+  it('lets the host own public history while retaining product back navigation', async () => {
+    const reportRoute = vi.fn();
+    const key = Symbol.for('pdlc.platform.product.v1');
+    Object.defineProperty(window, key, { configurable: true, value: { reportRoute } });
+    const push = vi.spyOn(window.history, 'pushState');
+    try {
+      render(<RouteLabel />);
+      act(() => navigatePath('/projects?filter=active#recent'));
+      await flushMicrotasks();
+      expect(push).not.toHaveBeenCalled();
+      expect(reportRoute).toHaveBeenCalledWith('/projects?filter=active#recent', undefined);
+      act(() => navigatePath('/settings'));
+      await flushMicrotasks();
+      act(() => goBack({ kind: 'home', view: 'home' }));
+      await flushMicrotasks();
+      expect(window.location.pathname + window.location.search + window.location.hash)
+        .toBe('/projects?filter=active#recent');
+    } finally {
+      Reflect.deleteProperty(window, key);
+      push.mockRestore();
+    }
   });
 
   it('updates history synchronously and notifies listeners after the microtask boundary', async () => {

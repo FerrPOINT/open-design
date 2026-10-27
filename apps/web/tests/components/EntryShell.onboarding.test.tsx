@@ -304,6 +304,7 @@ async function openByokRuntimeSetup() {
 
 afterEach(() => {
   cleanup();
+  delete window.__OD_PDLC_CONFIG__;
   globalThis.fetch = originalFetch;
   globalThis.ResizeObserver = originalResizeObserver;
   vi.useRealTimers();
@@ -2494,6 +2495,19 @@ describe('EntryShell onboarding OpenDesign AMR runtime', () => {
     expect(
       (screen.getByRole('button', { name: /API Key/i }) as HTMLButtonElement).disabled,
     ).toBe(false);
+  });
+
+  it('offers local CLI and BYOK in PDLC without advertising a second Cloud login', async () => {
+    window.__OD_PDLC_CONFIG__ = { issuer:'https://auth.example', clientId:'open-design',
+      publicOrigin:'https://studio.example',hostOrigin:null,catalogUrl:null,applicationKey:'open-design' };
+    globalThis.fetch = vi.fn(async () =>
+      jsonResponse({ loggedIn: false, profile: 'prod', user: null, configPath: '/x' }),
+    ) as typeof fetch;
+    renderOnboarding({ agentsLoading: false });
+    expect(screen.queryByRole('button', { name: /Sign in \/ Sign up/i })).toBeNull();
+    expect(screen.getByRole('button', { name: /^Local AI$/i })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /^API Key$/i }));
+    expect(await screen.findByRole('heading', { name: 'Bring Your Own Key' })).toBeTruthy();
   });
 
   it('renders the cloud sign-in CTA and no legacy AMR card once AMR is available', async () => {

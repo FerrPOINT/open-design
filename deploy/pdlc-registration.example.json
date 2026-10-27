@@ -1,0 +1,33 @@
+{
+  "auth": {
+    "oidc_clients_entry": {
+      "open-design": "https://studio.example.invalid/sso/callback"
+    },
+    "additional_token_services_entry": {
+      "key": "open-design",
+      "label": "OpenDesign"
+    }
+  },
+  "platform_service": {
+    "key": "open-design",
+    "label": "OpenDesign",
+    "origin": "https://studio.example.invalid",
+    "path": "/design/"
+  },
+  "runtime_catalog_service": {
+    "key": "open-design",
+    "label": "OpenDesign",
+    "url": "https://studio.example.invalid",
+    "ui_url": "https://studio.example.invalid",
+    "health": "unknown",
+    "capabilities": ["health.read", "ui.render"],
+    "contract_version": "1.0"
+  },
+  "opendesign_environment": {
+    "OD_PDLC_AUTH_ISSUER": "https://auth.example.invalid",
+    "OD_PDLC_CLIENT_ID": "open-design",
+    "OD_PDLC_PUBLIC_ORIGIN": "https://studio.example.invalid",
+    "OD_PDLC_HOST_ORIGIN": "https://pdlc.example.invalid",
+    "OD_PDLC_CATALOG_URL": "https://admin.example.invalid/api/v1/runtime/services"
+  }
+}

@@ -22,6 +22,7 @@ RUN apk add --no-cache python3 make g++
 
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY vendor ./vendor
 COPY scripts/postinstall.mjs ./scripts/
 COPY packages ./packages
 COPY tools ./tools

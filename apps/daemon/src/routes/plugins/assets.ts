@@ -9,6 +9,8 @@ import {
 
 export interface RegisterPluginAssetRoutesDeps {
   db: PluginDbLike;
+  /** Validated platform host origin; all ancestors must satisfy frame-ancestors. */
+  frameAncestorOrigin?: string | null;
   verifyWorkspaceRequestAuthority?: VerifyWorkspaceRequestAuthority;
   getWorkspacePlugin?: (
     db: PluginDbLike,
@@ -49,6 +51,8 @@ interface InstalledPluginLike {
 
 export function registerPluginAssetRoutes(app: Express, deps: RegisterPluginAssetRoutesDeps): void {
   const { db, pluginAssetCache, AssetCacheError, assetCacheRewriteUrl, isCacheableExternalUrl, assembleExample } = deps;
+  const contentSecurityPolicy = "default-src 'none'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'none'; frame-ancestors 'self'" +
+    (deps.frameAncestorOrigin ? ` ${deps.frameAncestorOrigin}` : '');
   const routeParam = (value: string | string[] | undefined): string => Array.isArray(value) ? value[0] ?? '' : value ?? '';
   const requestWithNavigationScope = (req: Request): Request | 'conflict' => {
     const workspaceId = typeof req.query.workspaceId === 'string'
@@ -192,7 +196,7 @@ export function registerPluginAssetRoutes(app: Express, deps: RegisterPluginAsse
           } catch {}
         }
       }
-      res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'none'; frame-ancestors 'self'");
+      res.setHeader('Content-Security-Policy', contentSecurityPolicy);
       res.setHeader('X-Content-Type-Options', 'nosniff');
       const ext = path.extname(contentPath).toLowerCase();
       const ct = ext === '.html' ? 'text/html; charset=utf-8' : ext === '.js' ? 'application/javascript; charset=utf-8' : ext === '.css' ? 'text/css; charset=utf-8' : ext === '.json' ? 'application/json; charset=utf-8' : ext === '.md' || ext === '.markdown' ? 'text/markdown; charset=utf-8' : ext === '.svg' ? 'image/svg+xml' : ext === '.png' ? 'image/png' : ext === '.jpg' || ext === '.jpeg' ? 'image/jpeg' : 'application/octet-stream';
@@ -383,7 +387,7 @@ export function registerPluginAssetRoutes(app: Express, deps: RegisterPluginAsse
       } catch {
         return res.status(404).json({ error: 'asset not found' });
       }
-      res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'none'; frame-ancestors 'self'");
+      res.setHeader('Content-Security-Policy', contentSecurityPolicy);
       res.setHeader('X-Content-Type-Options', 'nosniff');
       const ext = path.extname(resolved).toLowerCase();
       // Media seeking requires byte ranges and the media MIME type. Path and

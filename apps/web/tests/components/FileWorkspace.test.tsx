@@ -41,7 +41,7 @@ import {
   type CollabContextValue,
 } from '../../src/collab/collab-context';
 import { IframeKeepAliveProvider } from '../../src/components/IframeKeepAlivePool';
-import { navigate } from '../../src/router';
+import { confirmProductLeave, navigate } from '../../src/router';
 
 describe('settleManualEditExit', () => {
   it.each([
@@ -3659,6 +3659,36 @@ describe('measureWorkspaceTabBarAfterResize', () => {
 });
 
 describe('FileWorkspace sketch save', () => {
+  it('protects dirty sketch navigation and releases the guard after autosave', async () => {
+    const file: ProjectFile = { name: 'guard.sketch.json', path: 'guard.sketch.json',
+      type: 'file', size: 100, mtime: 1700000000, kind: 'sketch', mime: 'application/json' };
+    mockedFetchProjectFileText.mockResolvedValue(JSON.stringify({ type: 'excalidraw', version: 2,
+      elements: [], appState: { viewBackgroundColor: '#ffffff' }, files: {} }));
+    let finishSave!: (value: ProjectFile) => void;
+    mockedWriteProjectTextFile.mockImplementation(() => new Promise<ProjectFile>((resolve) => { finishSave = resolve; }));
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    render(<FileWorkspace projectId="project-1" projectKind="prototype" files={[file]} liveArtifacts={[]}
+      onRefreshFiles={vi.fn()} isDeck={false} tabsState={{ tabs: [file.name], active: file.name }}
+      onTabsStateChange={vi.fn()} />);
+    await screen.findByTestId('excalidraw');
+    const props = excalidrawWorkspaceMock.lastProps;
+    if (!props?.onChange) throw new Error('expected Excalidraw onChange');
+    act(() => {
+      props.onChange([], { viewBackgroundColor: '#ffffff' }, {});
+      props.onChange([{ id: 'unsaved', type: 'rectangle', isDeleted: false }], { viewBackgroundColor: '#ffffff' }, {});
+    });
+    await expect(confirmProductLeave()).resolves.toBe(false);
+    expect(confirm).toHaveBeenCalledTimes(1);
+    expect(window.dispatchEvent(new Event('beforeunload', { cancelable: true }))).toBe(false);
+    await waitFor(() => expect(mockedWriteProjectTextFile).toHaveBeenCalledTimes(1));
+    await act(async () => { finishSave(file); });
+    await waitFor(() => expect(screen.queryByText('Unsaved changes')).toBeNull());
+    confirm.mockClear();
+    await expect(confirmProductLeave()).resolves.toBe(true);
+    expect(confirm).not.toHaveBeenCalled();
+    expect(window.dispatchEvent(new Event('beforeunload', { cancelable: true }))).toBe(true);
+  });
+
   it('opens a persisted sketch through the editor path without rendering the static preview first', async () => {
     const file: ProjectFile = {
       name: 'test.sketch.json',

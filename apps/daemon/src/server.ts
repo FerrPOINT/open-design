@@ -16,6 +16,9 @@ import type {
   DesktopRenderSlidesResult,
 } from '@open-design/sidecar-proto';
 import express from 'express';
+import { pdlcConfiguration } from './http/pdlc-config.js';
+import { currentPdlcAuthorization, installPdlcAuth } from './http/pdlc-auth.js';
+import { createPdlcToolAuthorization } from './http/pdlc-tool-authorization.js';
 import multer from 'multer';
 import JSZip from 'jszip';
 import { execFile } from 'node:child_process';
@@ -2583,6 +2586,7 @@ function createProjectPreviewScopeRegistry() {
     scopes.set(scope, {
       projectId: String(projectId),
       workspace,
+      authorization: options.authorization ?? null,
       reusable,
       expiresAt,
       // The expiry this scope's DOCUMENTS report, frozen at creation.
@@ -2624,6 +2628,7 @@ function createProjectPreviewScopeRegistry() {
         // that teardown blank a preview that is still using it.
         if (entry.reusable !== true) continue;
         if (entry.projectId !== wantedProject) continue;
+        if (entry.authorization?.key !== options.authorization?.key) continue;
         const entryWorkspace = entry.workspace
           ? `${entry.workspace.workspaceId}\u0000${entry.workspace.workspaceMemberId}`
           : '';
@@ -2678,6 +2683,7 @@ function createProjectPreviewScopeRegistry() {
         return undefined;
       }
       if (entry.projectId !== String(projectId)) return undefined;
+      if (entry.authorization?.key !== options.authorization?.key) return undefined;
       entry.expiresAt = Date.now() + (options.ttlMs ?? PROJECT_PREVIEW_SCOPE_TTL_MS);
       return entry.expiresAt;
     },
@@ -2690,6 +2696,11 @@ function createProjectPreviewScopeRegistry() {
         return false;
       }
       return entry.projectId === String(projectId);
+    },
+    authorization(projectId, scope) {
+      const entry = scopes.get(String(scope || ''));
+      if (!entry || entry.expiresAt <= Date.now() || entry.projectId !== String(projectId)) return null;
+      return entry.authorization;
     },
     resolve(projectId, scope) {
       const key = String(scope || '');
@@ -3154,6 +3165,7 @@ export async function startServer({
   host = normalizeDaemonBindHost(host);
   let resolvedPort = port;
   let daemonShuttingDown = false;
+  const pdlcConfig = pdlcConfiguration();
   const extraAllowedOrigins = configuredAllowedOrigins();
   const workspaceAuthorityCacheMode = resolveWorkspaceAuthorityCacheMode(
     process.env.OD_WORKSPACE_AUTHORITY_CACHE_MODE,
@@ -3173,10 +3185,10 @@ export async function startServer({
   // are exempted so the desktop UI keeps working).
   const apiToken = apiTokenFromEnv();
   const apiAuthDisabled = isApiAuthDisabled();
-  const apiTokenAuthEnabled = apiToken.length > 0 && !apiAuthDisabled;
+  const apiTokenAuthEnabled = !pdlcConfig && apiToken.length > 0 && !apiAuthDisabled;
   const isApiTokenAuthorization = (authorization: string | undefined): boolean =>
     apiTokenAuthEnabled && apiTokenAuthorizationMatches(authorization, apiToken);
-  if (!isLoopbackHostname(host) && apiToken.length === 0 && !apiAuthDisabled) {
+  if (!pdlcConfig && !isLoopbackHostname(host) && apiToken.length === 0 && !apiAuthDisabled) {
     throw new Error(
       `OD_BIND_HOST=${host} requires OD_API_TOKEN to be set. ` +
       `Generate one with \`openssl rand -hex 32\` and re-launch. ` +
@@ -3206,6 +3218,19 @@ export async function startServer({
 
   const app = express();
   installRouteRegistrationGuard(app);
+  const projectPreviewScopes = createProjectPreviewScopeRegistry();
+  // Install before parsers and every data surface. Proxy/loopback and legacy
+  // shared-token exceptions never bypass platform identity verification.
+  const pdlcAuth = pdlcConfig ? installPdlcAuth(app, pdlcConfig, undefined, (req) => {
+    const parsed = parseProjectPreviewAssetPath(req.path.replace(/^\/api(?=\/)/, ''));
+    return parsed ? projectPreviewScopes.authorization(parsed.projectId, parsed.scope) : null;
+  }, createPdlcToolAuthorization(toolTokenRegistry)) : null;
+  if (!pdlcConfig) {
+    app.get('/api/pdlc/config', (_req, res) => res.json(null));
+    app.get('/api/pdlc/bootstrap.js', (_req, res) => {
+      res.type('application/javascript').send('window.__OD_PDLC_CONFIG__=null;');
+    });
+  }
   // Clipper page captures are self-contained HTML with inlined images plus a
   // Figma IR, which for an image-heavy site (The Economist, news front pages)
   // runs to tens of MB — far past a normal JSON body. Give the ingest route a
@@ -3229,7 +3254,6 @@ export async function startServer({
   // `res.ok` and the export continues without the evidence.
   app.use(CHAT_SCROLL_FORENSICS_PATH, chatScrollForensicsBodyParser);
   app.use(express.json({ limit: '4mb' }));
-  const projectPreviewScopes = createProjectPreviewScopeRegistry();
 
   // Plan §3.K1 — API-token middleware.
   //
@@ -8291,7 +8315,7 @@ export async function startServer({
     OD_BIN,
   };
 
-  app.get('/api/health', async (_req, res) => {
+  app.get(['/api/health', '/health'], async (_req, res) => {
     const versionInfo = await readCurrentAppVersionInfo();
     const {
       pending,
@@ -9840,6 +9864,7 @@ export async function startServer({
   });
   registerPluginAssetRoutes(app, {
     db,
+    frameAncestorOrigin: pdlcConfig?.hostOrigin ?? null,
     verifyWorkspaceRequestAuthority,
     getWorkspacePlugin: getWorkspacePluginForRequest,
     pluginAssetCache,
@@ -11401,6 +11426,7 @@ export async function startServer({
     const toolTokenTtlMs = resolveChatToolTokenTtlMs(inactivityTimeoutMs);
     const toolTokenGrant = cwd && typeof projectId === 'string' && projectId
       ? toolTokenRegistry.mint({
+          authorization: currentPdlcAuthorization() ?? undefined,
           runId,
           projectId,
           allowedEndpoints: CHAT_TOOL_ENDPOINTS,
@@ -17946,6 +17972,7 @@ export async function startServer({
     // work below.
     let messageEventPayloadHeal: MessageEventPayloadHealHandle | null = null;
     const cleanupDaemonBackgroundWork = () => {
+      pdlcAuth?.dispose();
       stopDiagnosticConfigObserver();
       stopDiagnosticApiObserver();
       void automaticDiagnostics?.stop();

@@ -1,4 +1,5 @@
 import { readRetriedErrorSurface, retriedErrorSurfaceKey, writeRetriedErrorSurface } from '../runtime/chat/retried-error-surface';
+import { usePdlcReadiness } from '../pdlc/readiness';
 import {
   startTransition,
   useCallback,
@@ -3688,6 +3689,9 @@ export function ProjectView({
       !messagesInitialized || messagesAuthorityKeyRef.current !== projectRunAuthorityKey
     ));
   const currentConversationStreaming = streaming && streamingConversationId === activeConversationId;
+  usePdlcReadiness(currentConversationReadPending,
+    failedMessagesConversationId === activeConversationId && activeConversationId
+      ? 'Не удалось загрузить разговор OpenDesign.' : null);
   const currentConversationControlStreaming =
     currentConversationStreaming || currentConversationHasProgrammaticBrandExtractionRun;
   const currentConversationBusy = currentConversationReadPending

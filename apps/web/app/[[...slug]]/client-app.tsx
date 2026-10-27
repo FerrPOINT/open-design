@@ -40,7 +40,7 @@ installChatScrollExperiments();
 // rendering for the entire tree. This keeps `next build --output export`
 // from trying to evaluate browser-only code while still emitting a real
 // shell HTML the daemon can serve as the SPA fallback.
-const App = dynamic(() => import('../../src/App').then((m) => m.App), {
+const App = dynamic(() => import('../../src/pdlc/PdlcApp').then((m) => m.PdlcApp), {
   ssr: false,
   // Keeps the `od-loading-shell` class on the outer node: the white-screen
   // detector filters this whole subtree out by that class when deciding

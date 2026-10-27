@@ -970,7 +970,7 @@ export function registerProjectExportRoutes(app: Express, ctx: RegisterProjectEx
           renderPreviewScope = ctx.projectPreviewScopes.mint(
             projectId,
             authority.previewWorkspace,
-            { ttlMs: SCREENSHOT_RENDER_PREVIEW_SCOPE_TTL_MS },
+            { ttlMs: SCREENSHOT_RENDER_PREVIEW_SCOPE_TTL_MS, authorization: res.locals.pdlcPreview },
           );
           const input = await buildDesktopArtifactExportInput({
             baseHref: scopedProjectPreviewBaseHref(projectId, fileName, renderPreviewScope),
@@ -1060,7 +1060,7 @@ export function registerProjectExportRoutes(app: Express, ctx: RegisterProjectEx
       renderPreviewScope = ctx.projectPreviewScopes.mint(
         projectId,
         authority.previewWorkspace,
-        { ttlMs: SCREENSHOT_RENDER_PREVIEW_SCOPE_TTL_MS },
+        { ttlMs: SCREENSHOT_RENDER_PREVIEW_SCOPE_TTL_MS, authorization: res.locals.pdlcPreview },
       );
       renderOptions.baseHref = scopedProjectPreviewBaseHref(
         projectId,

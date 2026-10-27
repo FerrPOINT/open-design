@@ -6752,6 +6752,7 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
               workspaceId: requestContext.workspaceId,
               workspaceMemberId: requestContext.workspaceMemberId,
             },
+        { authorization: res.locals.pdlcPreview },
       );
       const expiresAt = projectPreviewScopes.expiresAt(project.id, scope);
       if (expiresAt === undefined) {
@@ -6821,7 +6822,7 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
         project.id,
         { mode: 'read', allowNavigationQuery: true },
       )) return;
-      const expiresAt = projectPreviewScopes.renew(project.id, scope);
+      const expiresAt = projectPreviewScopes.renew(project.id, scope, { authorization: res.locals.pdlcPreview });
       if (expiresAt === undefined) {
         sendApiError(res, 404, 'PREVIEW_SCOPE_NOT_FOUND', 'preview scope not found');
         return;
@@ -7074,7 +7075,7 @@ export function registerProjectFileRoutes(app: Express, ctx: RegisterProjectFile
                   workspaceMemberId: headerContext.workspaceMemberId,
                 }
               : null;
-          const scope = projectPreviewScopes.acquire(projectId, previewWorkspace);
+          const scope = projectPreviewScopes.acquire(projectId, previewWorkspace, { authorization: res.locals.pdlcPreview });
           // The document's own expiry, not the live one: renewal must keep the
           // scope alive without changing a single byte of what this read
           // returns.
