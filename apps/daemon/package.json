@@ -68,7 +68,7 @@
     "tar": "7.5.22",
     "undici": "7.29.0",
     "jose": "6.2.12",
-    "@pdlc/ui": "file:../../vendor/pdlc-ui-0.3.0-3ff5e82f607c.tgz"
+    "@pdlc/ui": "file:../../vendor/pdlc-ui-0.3.0-e0c69e3615f6.tgz"
   },
   "devDependencies": {
     "@babel/types": "7.29.0",

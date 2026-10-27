@@ -45,4 +45,5 @@ html[data-pdlc] .entry-main--scroll { --entry-content-surface: var(--color-surfa
 html[data-pdlc] .composer-input-editor [contenteditable='true'],
 html[data-pdlc] .composer-input-editor .composer-editable { color: var(--text); }
 html[data-pdlc] .base-choice-trigger + .agent-model-select-chevron,
-html[data-pdlc] .base-choice-trigger + .orbit-template-select-chevron { display: none; }
+html[data-pdlc] .base-choice-trigger + .orbit-template-select-chevron,
+html[data-pdlc] .settings-general-select:has(.base-choice-trigger) > .od-icon { display: none; }

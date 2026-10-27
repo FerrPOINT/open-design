@@ -122,8 +122,8 @@ importers:
         specifier: 1.9.1
         version: 1.9.1
       '@pdlc/ui':
-        specifier: file:../../vendor/pdlc-ui-0.3.0-3ff5e82f607c.tgz
-        version: file:vendor/pdlc-ui-0.3.0-3ff5e82f607c.tgz(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(i18next@26.4.0(typescript@5.9.3))(react-dom@19.3.1(react@19.3.1))(react-i18next@15.7.4(i18next@26.4.0(typescript@5.9.3))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@5.9.3))(react-router@8.4.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(sonner@2.0.8(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(zustand@5.0.15(@types/react@19.3.0)(react@19.3.1)(use-sync-external-store@1.6.0(react@19.3.1)))
+        specifier: file:../../vendor/pdlc-ui-0.3.0-e0c69e3615f6.tgz
+        version: file:vendor/pdlc-ui-0.3.0-e0c69e3615f6.tgz(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(i18next@26.4.0(typescript@5.9.3))(react-dom@19.3.1(react@19.3.1))(react-i18next@15.7.4(i18next@26.4.0(typescript@5.9.3))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@5.9.3))(react-router@8.4.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(sonner@2.0.8(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(zustand@5.0.15(@types/react@19.3.0)(react@19.3.1)(use-sync-external-store@1.6.0(react@19.3.1)))
       acorn:
         specifier: 8.15.0
         version: 8.15.0
@@ -335,8 +335,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sidecar-proto
       '@pdlc/ui':
-        specifier: file:../../vendor/pdlc-ui-0.3.0-3ff5e82f607c.tgz
-        version: file:vendor/pdlc-ui-0.3.0-3ff5e82f607c.tgz(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(i18next@26.4.0(typescript@5.9.3))(react-dom@19.3.1(react@19.3.1))(react-i18next@15.7.4(i18next@26.4.0(typescript@5.9.3))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@5.9.3))(react-router@8.4.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(sonner@2.0.8(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(zustand@5.0.15(@types/react@19.3.0)(react@19.3.1)(use-sync-external-store@1.6.0(react@19.3.1)))
+        specifier: file:../../vendor/pdlc-ui-0.3.0-e0c69e3615f6.tgz
+        version: file:vendor/pdlc-ui-0.3.0-e0c69e3615f6.tgz(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(i18next@26.4.0(typescript@5.9.3))(react-dom@19.3.1(react@19.3.1))(react-i18next@15.7.4(i18next@26.4.0(typescript@5.9.3))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@5.9.3))(react-router@8.4.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(sonner@2.0.8(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(zustand@5.0.15(@types/react@19.3.0)(react@19.3.1)(use-sync-external-store@1.6.0(react@19.3.1)))
       '@xterm/addon-fit':
         specifier: 0.10.0
         version: 0.10.0(@xterm/xterm@5.5.0)
@@ -2643,8 +2643,8 @@ packages:
   '@pdf-lib/upng@1.0.1':
     resolution: {integrity: sha512-dQK2FUMQtowVP00mtIksrlZhdFXQZPC+taih1q4CvPZ5vqdxR/LKBaFg0oAfzd1GlHZXXSPdQfzQnt+ViGvEIQ==}
 
-  '@pdlc/ui@file:vendor/pdlc-ui-0.3.0-3ff5e82f607c.tgz':
-    resolution: {integrity: sha512-fKmX5NfWsnTKeDuTdDs/VI46kcFIWUjSzFdDcxTz3S9RBOqQG4hTvh5BSKoN2Y8Y3qX6OQfmPDHzI8QPQz7Mrw==, tarball: file:vendor/pdlc-ui-0.3.0-3ff5e82f607c.tgz}
+  '@pdlc/ui@file:vendor/pdlc-ui-0.3.0-e0c69e3615f6.tgz':
+    resolution: {integrity: sha512-9sHWiy8M8VEQ/tH/EeCOuQP30SjpEXJZbl0YG8DViKa05GHHmfihh32xIWepuhgN+itJSikbEzi1k1FFXYR7Wg==, tarball: file:vendor/pdlc-ui-0.3.0-e0c69e3615f6.tgz}
     version: 0.3.0
     hasBin: true
     peerDependencies:
@@ -8785,7 +8785,7 @@ snapshots:
     dependencies:
       pako: 1.0.11
 
-  '@pdlc/ui@file:vendor/pdlc-ui-0.3.0-3ff5e82f607c.tgz(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(i18next@26.4.0(typescript@5.9.3))(react-dom@19.3.1(react@19.3.1))(react-i18next@15.7.4(i18next@26.4.0(typescript@5.9.3))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@5.9.3))(react-router@8.4.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(sonner@2.0.8(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(zustand@5.0.15(@types/react@19.3.0)(react@19.3.1)(use-sync-external-store@1.6.0(react@19.3.1)))':
+  '@pdlc/ui@file:vendor/pdlc-ui-0.3.0-e0c69e3615f6.tgz(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(i18next@26.4.0(typescript@5.9.3))(react-dom@19.3.1(react@19.3.1))(react-i18next@15.7.4(i18next@26.4.0(typescript@5.9.3))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@5.9.3))(react-router@8.4.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(sonner@2.0.8(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(zustand@5.0.15(@types/react@19.3.0)(react@19.3.1)(use-sync-external-store@1.6.0(react@19.3.1)))':
     dependencies:
       '@dicebear/core': 9.4.3
       '@dicebear/micah': 9.4.3(@dicebear/core@9.4.3)

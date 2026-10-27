@@ -1144,8 +1144,8 @@
 }
 /* The chevron renders as an <i class="od-icon"> font glyph, not an <svg>, so
    anchor it to the pill's right edge (inside the 42px right padding). */
-.settings-general-select svg,
-.settings-general-select .od-icon {
+.settings-general-select > svg,
+.settings-general-select > .od-icon {
   position: absolute;
   right: var(--spacing-12);
   top: 50%;

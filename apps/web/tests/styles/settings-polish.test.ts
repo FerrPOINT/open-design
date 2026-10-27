@@ -10,7 +10,7 @@ const artifactsCss = readFileSync(new URL('../../src/styles/workspace/artifacts.
 
 function cssBlock(css: string, selector: string): string {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const match = new RegExp(`${escaped}\\s*\\{([^}]*)\\}`).exec(css);
+  const match = new RegExp(`${escaped}\\s*\\{([^}]*)\\}`).exec(css.replaceAll('\r\n', '\n'));
   if (!match) throw new Error(`Missing CSS block for ${selector}`);
   return match[1] ?? '';
 }
