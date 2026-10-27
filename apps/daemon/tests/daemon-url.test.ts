@@ -21,21 +21,21 @@ describe("resolveDaemonUrl", () => {
 
   it("prefers the explicit --daemon-url flag", async () => {
     const url = await resolveDaemonUrl({
-      flagUrl: "http://flag.example:1111",
+      flagUrl: "https://flag.example:1111",
       env: {
-        OD_DAEMON_URL: "http://env.example:2222",
+        OD_DAEMON_URL: "https://env.example:2222",
       },
     });
-    expect(url).toBe("http://flag.example:1111");
+    expect(url).toBe("https://flag.example:1111");
   });
 
   it("falls back to OD_DAEMON_URL when no flag given", async () => {
     const url = await resolveDaemonUrl({
       env: {
-        OD_DAEMON_URL: "http://env.example:2222",
+        OD_DAEMON_URL: "https://env.example:2222",
       },
     });
-    expect(url).toBe("http://env.example:2222");
+    expect(url).toBe("https://env.example:2222");
   });
 
   it("returns the legacy default when no flag/env/socket is available", async () => {

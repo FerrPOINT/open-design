@@ -6998,28 +6998,16 @@ async function postJsonToDaemon(base, route, body, headers = {}) {
   let resp;
   try {
     resp = await fetch(`${base}${route}`, {
-      method:  'POST',
+      method: 'POST',
       headers: { 'content-type': 'application/json', ...headers },
-      body:    JSON.stringify(body),
+      body: JSON.stringify(body),
     });
   } catch (err) {
     surfaceFetchError(err, base);
-    process.exit(3);
+    throw new CliExit(3);
   }
-  const data = await resp.json().catch(() => ({}));
-  if (!resp.ok) {
-    const errCode = data?.error?.code;
-    if (errCode && errCode in RECOVERABLE_EXIT_CODES) {
-      return exitWithStructuredError({
-        code:    errCode,
-        message: data.error.message ?? `HTTP ${resp.status}`,
-        data:    data.error.data,
-      });
-    }
-    console.error(`POST ${route} failed: ${resp.status} ${JSON.stringify(data)}`);
-    process.exit(1);
-  }
-  return data;
+  if (!resp.ok) return structuredHttpFailure(resp, 'request-failed');
+  return resp.json().catch(() => ({}));
 }
 
 async function postImportFolderToDaemon(base, body, baseDir, workspaceHeaders = {}) {
@@ -7092,7 +7080,7 @@ Common options:
   // machine-readable fail() path instead of throwing out of parseFlags.
   if (sub === 'handoff') {
     const { exitCode } = await runProjectHandoff(rest);
-    if (exitCode !== 0) process.exit(exitCode);
+    if (exitCode !== 0) throw new CliExit(exitCode);
     return;
   }
   const flags = parseFlags(rest, {

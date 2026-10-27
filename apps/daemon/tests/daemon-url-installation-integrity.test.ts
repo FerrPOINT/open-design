@@ -40,6 +40,15 @@ async function runDiscovery(options: {
       : "prebundled/daemon/chunks/discovery.mjs");
     await fs.mkdir(path.dirname(modulePath), { recursive: true });
     await fs.writeFile(modulePath, compiledResolver);
+    for (const relative of ['daemon-fetch', 'http/loopback-url']) {
+      const dependency = ts.transpileModule(
+        await fs.readFile(path.join(daemonRoot, `src/${relative}.ts`), 'utf8'),
+        { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } },
+      ).outputText;
+      const destination = path.join(path.dirname(modulePath), `${relative}.js`);
+      await fs.mkdir(path.dirname(destination), { recursive: true });
+      await fs.writeFile(destination, dependency);
+    }
     // Production dependencies are read through a link; no package manager is run.
     await fs.symlink(path.join(daemonRoot, "node_modules"), path.join(root, "node_modules"), "junction");
     await fs.writeFile(path.join(root, "package.json"), JSON.stringify({ name: "open-design", type: "module" }));

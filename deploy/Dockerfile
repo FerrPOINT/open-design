@@ -39,10 +39,12 @@ RUN corepack enable && \
     corepack prepare pnpm@10.33.2 --activate && \
     pnpm install --frozen-lockfile
 
-COPY apps ./apps
+COPY apps/web ./apps/web
+RUN pnpm --filter @open-design/web build
+COPY apps/daemon ./apps/daemon
+# Shared-lockfile deployment preserves the exact graph, unlike legacy re-resolution.
 RUN pnpm --filter @open-design/daemon build && \
-    pnpm --filter @open-design/web build && \
-    pnpm --filter @open-design/daemon deploy --legacy --prod /app/deploy/daemon && \
+    pnpm --config.inject-workspace-packages=true --filter @open-design/daemon deploy --prod /app/deploy/daemon && \
     pnpm store prune && \
     rm -rf \
       /root/.cache \
