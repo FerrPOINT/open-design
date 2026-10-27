@@ -121,7 +121,7 @@ COPY --from=build --chown=open-design:open-design /app/assets/community-pets ./a
 COPY --from=build --chown=open-design:open-design /app/plugins/_official ./plugins/_official
 
 RUN mkdir -p /app/.od && \
-    chown -R open-design:open-design /app
+    chown open-design:open-design /app/.od
 
 ENV NODE_ENV=production
 ENV NODE_OPTIONS=--max-old-space-size=192
