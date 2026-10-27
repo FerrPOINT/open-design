@@ -1,4 +1,5 @@
 @import 'tailwindcss/theme.css' layer(theme);
+@import '@pdlc/ui/tokens.css';
 @import 'tailwindcss/utilities.css' layer(utilities);
 @source '../../node_modules/@pdlc/ui/src';
 

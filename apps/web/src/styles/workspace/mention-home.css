@@ -585,7 +585,7 @@
 
 /* Confirm modal — same shell, danger primary */
 .modal-confirm {
-  width: 420px;
+  max-width: 420px;
   gap: 12px;
 }
 .modal-confirm-message {
@@ -601,7 +601,7 @@
   line-height: 1.55;
 }
 .modal-confirm .row { margin-top: 8px; }
-.modal-confirm .row button {
+.modal-confirm .row button:where(:not(.base-control)) {
   padding: 8px 18px;
   border-radius: var(--radius-pill);
   font-size: 13px;
@@ -611,35 +611,35 @@
   background: var(--bg-subtle);
   color: var(--text-strong);
 }
-.modal-confirm .row button:hover { border-color: var(--border-strong); }
-.modal-confirm .row button.primary {
+.modal-confirm .row button:where(:not(.base-control)):hover { border-color: var(--border-strong); }
+.modal-confirm .row button:where(:not(.base-control)).primary {
   background: #202020;
   border-color: #202020;
   color: #fafafa;
 }
-.modal-confirm .row button.primary:hover {
+.modal-confirm .row button:where(:not(.base-control)).primary:hover {
   background: #353535;
   border-color: #353535;
   color: #fafafa;
 }
-.modal-confirm .row button.primary:active {
+.modal-confirm .row button:where(:not(.base-control)).primary:active {
   background: #494949;
   border-color: #494949;
   color: #fafafa;
 }
-.modal-confirm .row button.primary:disabled,
-.modal-confirm .row button.primary:disabled:hover {
+.modal-confirm .row button:where(:not(.base-control)).primary:disabled,
+.modal-confirm .row button:where(:not(.base-control)).primary:disabled:hover {
   background: #ededed;
   border-color: transparent;
   color: #bdbdbd;
   cursor: not-allowed;
 }
-.modal-confirm .row button.primary.danger {
+.modal-confirm .row button:where(:not(.base-control)).primary.danger {
   background: var(--red);
   border-color: var(--red);
   color: #fff;
 }
-.modal-confirm .row button.primary.danger:hover { filter: brightness(0.95); }
+.modal-confirm .row button:where(:not(.base-control)).primary.danger:hover { filter: brightness(0.95); }
 
 /* Project category tags */
 .design-card-tag {
