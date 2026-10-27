@@ -42,8 +42,12 @@ RUN corepack enable && \
 COPY apps/web ./apps/web
 RUN pnpm --filter @open-design/web build
 COPY apps/daemon ./apps/daemon
+COPY vendor ./apps/daemon/vendor
 # Shared-lockfile deployment preserves the exact graph, unlike legacy re-resolution.
-RUN pnpm --filter @open-design/daemon build && \
+# pnpm resolves locked local tarballs relative to the deployment root. Include
+# the same verified vendor archive in the daemon payload before export.
+RUN node -e "const fs=require('node:fs');const p='apps/daemon/package.json';const m=JSON.parse(fs.readFileSync(p));m.files.push('vendor');fs.writeFileSync(p,JSON.stringify(m))" && \
+    pnpm --filter @open-design/daemon build && \
     pnpm --config.inject-workspace-packages=true --filter @open-design/daemon deploy --prod /app/deploy/daemon && \
     pnpm store prune && \
     rm -rf \
