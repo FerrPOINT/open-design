@@ -11,6 +11,7 @@
 // the client can list its tool schema.
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { validTrackerFilter } from './http/pdlc-project-binding.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
   CallToolRequestSchema,
@@ -450,7 +451,10 @@ export const TOOL_DEFS = [
     description: 'List every OpenDesign project on this daemon.',
     inputSchema: {
       type: 'object',
-      properties: { pluginWorkflowId: PLUGIN_WORKFLOW_ID_ARG },
+      properties: {
+        pluginWorkflowId: PLUGIN_WORKFLOW_ID_ARG,
+        trackerProjectId: { type: 'string', description: 'Optional Tracker project UUID, or none for unassigned works. Omit to list all accessible works.' },
+      },
       additionalProperties: false,
     },
     annotations: { ...READ_ANNOTATIONS, title: 'List OpenDesign projects' },
@@ -681,6 +685,7 @@ export const TOOL_DEFS = [
       type: 'object',
       properties: {
         name: { type: 'string', description: 'Human-readable project name.' },
+        trackerProjectId: { type: 'string', description: 'Optional Tracker project UUID. The daemon checks access with the current user credential. Omit for an unassigned work.' },
         id: {
           type: 'string',
           description: 'Optional project id slug ([A-Za-z0-9._-], <=128 chars). Derived from name when omitted.',
@@ -2210,10 +2215,12 @@ async function handleMcpToolCall(
           structuredContent: confirmed as unknown as JsonObject,
         };
       }
-      case 'list_projects':
+      case 'list_projects': {
+        if (!validTrackerFilter(args.trackerProjectId)) throw new Error('trackerProjectId must be a Tracker UUID or none');
+        const query = args.trackerProjectId === undefined ? '' : `?trackerProjectId=${encodeURIComponent(args.trackerProjectId)}`;
         if (workspaceId && headers) {
           const data = await getJson<WorkspaceProjectsResponse>(
-            `${baseUrl}/api/workspaces/${encodeURIComponent(workspaceId)}/projects`,
+            `${baseUrl}/api/workspaces/${encodeURIComponent(workspaceId)}/projects${query}`,
             headers,
           );
           return ok({
@@ -2225,7 +2232,8 @@ async function handleMcpToolCall(
             })),
           });
         }
-        return ok(await getJson<ProjectsPayload>(`${baseUrl}/api/projects`));
+        return ok(await getJson<ProjectsPayload>(`${baseUrl}/api/projects${query}`));
+      }
       case 'get_active_context': {
         const data = await getJson<ActiveContext>(`${baseUrl}/api/active`);
         if (!data || data.active === false) {
@@ -2519,6 +2527,10 @@ async function createProject(
       ? args.id
       : slugifyProjectId(args.name);
   const body: JsonObject = { id, name: args.name, skipDiscoveryBrief: true };
+  if (!validTrackerFilter(args.trackerProjectId) || args.trackerProjectId === 'none') {
+    throw new Error('trackerProjectId must be a Tracker UUID when creating a work');
+  }
+  if (args.trackerProjectId !== undefined) body.metadata = { trackerProjectId: args.trackerProjectId };
   if (typeof args.designSystem === 'string' && args.designSystem.length > 0) {
     body.designSystemId = args.designSystem;
   }

@@ -156,8 +156,31 @@ login или credential store. Не записывать значение ток
 или документы. Пример вызова с уже установленной переменной окружения:
 
 ```sh
-od project list --daemon-url https://design.example
+corepack pnpm exec od status --json --daemon-url http://127.0.0.3:8193
+corepack pnpm exec od project list --json --daemon-url http://127.0.0.3:8193
+corepack pnpm exec od project list --tracker-project none --json --daemon-url http://127.0.0.3:8193
 ```
+
+Команды выполняются из корня checkout нашего форка после штатной сборки daemon.
+Адрес выше относится только к локальной установке PDLC3; для другой установки
+используют её адрес через `--daemon-url` либо `OD_DAEMON_URL`.
+Глобальная установка и изменение PATH не требуются. Запуск `od` без подкоманды
+запускает локальную студию, поэтому для управления общей установкой используют
+явные подкоманды. `od` управляет содержимым студии; OpenCode выполняет генерацию
+на сервере, а существующий оператор PDLC управляет установкой и backup/restore.
+
+Фильтр `--tracker-project` принимает UUID или `none` («Без проекта»); отсутствие
+флага сохраняет полный доступный список. MCP `list_projects` принимает такой же
+необязательный `trackerProjectId`, а `create_project` — UUID для назначения
+привязки через metadata. Без него новая работа остаётся «Без проекта».
+При назначении нужен также текущий доступ к проекту и право чтения Tracker;
+токен другого сервиса не подставляется. Фильтр не создаёт ACL.
+
+Для CLI create существующий `--metadata-json <файл|->` принимает JSON-объект,
+например `{"kind":"prototype","trackerProjectId":"<Tracker-UUID>"}`.
+Ошибка чтения, JSON, null или массив дают `CLI_USAGE`, exit 2 до создания работы.
+При `--json` HTTP-ошибки возвращаются в stderr как JSON; stdout предназначен для
+успешного результата. Ошибки не требуют отдельного login или хранилища токенов.
 
 PAT проверяется через `/auth/tokens/introspect?include_lifetime=true`: текущий
 допуск `open-design`, срок действия и scopes. Чтение требует `open-design:read`,

@@ -17,6 +17,7 @@ import { runDeliverableSyntaxToolCli } from './tools-deliverable-syntax-cli.js';
 import { splitResearchSubcommand } from './research/cli-args.js';
 import { resolveDaemonUrl } from './daemon-url.js';
 import { daemonFetch as fetch } from './daemon-fetch.js';
+import { validTrackerFilter } from './http/pdlc-project-binding.js';
 import { byokProviderFromCliOptions } from './runtimes/byok-cli.js';
 import { BYOK_OPENCODE_AGENT_ID } from './runtimes/byok-opencode.js';
 import { redactSecrets } from './connectionTest.js';
@@ -258,7 +259,7 @@ const PROJECT_STRING_FLAGS = new Set([
   'client-request-id',
   'agent', 'model', 'service-tier', 'snapshot-id', 'inputs', 'grant-caps', 'editor',
   'title', 'label', 'against', 'seed-from', 'fork-after', 'mode',
-  'source', 'out',
+  'source', 'out', 'tracker-project',
 ]);
 const PROJECT_RESOURCE_STRING_FLAGS = new Set([
   ...PROJECT_STRING_FLAGS,
@@ -1955,9 +1956,7 @@ async function runResearchSearch(rawArgs) {
     process.exit(3);
   }
   if (!resp.ok) {
-    const text = await resp.text();
-    console.error(`daemon ${resp.status}: ${text}`);
-    process.exit(4);
+    return structuredHttpFailure(resp, 'CLI_REQUEST_FAILED', undefined, 4);
   }
   process.stdout.write(`${await resp.text()}\n`);
 }
@@ -2077,9 +2076,10 @@ async function runMediaStockSearch(rawArgs) {
   if (!response.ok) {
     const text = await response.text();
     let code;
-    try { code = JSON.parse(text)?.error?.code; } catch { /* preserve the daemon error text */ }
-    console.error(`daemon ${response.status}: ${text}`);
-    process.exit(code === 'STOCK_SEARCH_UNAVAILABLE' ? 5 : code === 'INVALID_STOCK_REQUEST' ? 2 : 4);
+    let body;
+    try { body = JSON.parse(text); code = body?.error?.code; } catch { body = {}; }
+    return structuredHttpFailure(response, 'CLI_REQUEST_FAILED', body,
+      code === 'STOCK_SEARCH_UNAVAILABLE' ? 5 : code === 'INVALID_STOCK_REQUEST' ? 2 : 4);
   }
   const report = await response.json() as StockSearchResponse;
   for (const [slotIndex, slot] of report.slots.entries()) {
@@ -2137,9 +2137,7 @@ async function runMediaScaffold(rawArgs) {
     process.exit(3);
   }
   if (!resp.ok) {
-    const responseText = await resp.text();
-    console.error(`daemon ${resp.status}: ${responseText}`);
-    process.exit(4);
+    return structuredHttpFailure(resp, 'CLI_REQUEST_FAILED', undefined, 4);
   }
   process.stdout.write(`${JSON.stringify(await resp.json())}\n`);
 }
@@ -2385,9 +2383,7 @@ async function pollUntilDoneOrBudget(daemonUrl, taskId, sinceStart, options = {}
       await flushStreamsAndExit(4);
     }
     if (!resp.ok) {
-      const text = await resp.text();
-      console.error(`daemon ${resp.status}: ${text}`);
-      await flushStreamsAndExit(4);
+      return structuredHttpFailure(resp, 'CLI_REQUEST_FAILED', undefined, 4);
     }
     let snap;
     try {
@@ -2462,6 +2458,7 @@ async function pollUntilDoneOrBudget(daemonUrl, taskId, sinceStart, options = {}
 }
 
 function surfaceFetchError(err, daemonUrl) {
+  if (err instanceof CliExit) throw err;
   const cause = err && typeof err === 'object' ? err.cause : null;
   const code =
     cause && typeof cause === 'object' && typeof cause.code === 'string'
@@ -3051,8 +3048,8 @@ otherwise a minimal \`od mcp --daemon-url <url>\` command is used.`);
 // code + a JSON envelope on stderr. Code agents read these to decide
 // whether the failure is recoverable (re-grant capabilities, prompt
 // the user, retry with --grant-caps, etc.).
-function exitWithStructuredError({ code, message, data }, byokApiKey) {
-  const exit = RECOVERABLE_EXIT_CODES[code] ?? 1;
+function exitWithStructuredError({ code, message, data }, byokApiKey?, fallbackExit = 1) {
+  const exit = code === 'CLI_USAGE' ? 2 : RECOVERABLE_EXIT_CODES[code] ?? fallbackExit;
   const envelope = { error: { code, message, data: data ?? {} } };
   process.stderr.write(serializeRunCliJson(envelope, byokApiKey) + '\n');
   throw new CliExit(exit);
@@ -3071,14 +3068,16 @@ function exitWithStructuredError({ code, message, data }, byokApiKey) {
 // structured envelope instead of collapsing to `HTTP <status>: `, which
 // would drop the only diagnostic the daemon actually returned to a
 // headless caller.
-async function structuredHttpFailure(resp, fallbackCode = 'daemon-not-running') {
+async function structuredHttpFailure(resp, fallbackCode = 'daemon-not-running', parsedBody?: any, fallbackExit = 1) {
   let raw = '';
-  let parsed;
-  try {
-    raw = await resp.text();
-    parsed = raw ? JSON.parse(raw) : {};
-  } catch {
-    parsed = {};
+  let parsed = parsedBody;
+  if (parsed === undefined) {
+    try {
+      raw = await resp.text();
+      parsed = raw ? JSON.parse(raw) : {};
+    } catch {
+      parsed = {};
+    }
   }
   const errorObj =
     typeof parsed?.error === 'string'
@@ -3092,13 +3091,13 @@ async function structuredHttpFailure(resp, fallbackCode = 'daemon-not-running') 
       code:    errCode,
       message: errorObj?.message ?? `HTTP ${resp.status}`,
       data:    structuredErrorData(errorObj),
-    });
+    }, undefined, resp.status === 401 || resp.status === 403 ? 1 : fallbackExit);
   }
   exitWithStructuredError({
     code:    fallbackCode,
     message: errorObj?.message ?? `HTTP ${resp.status}`,
     data:    structuredErrorData(errorObj),
-  });
+  }, undefined, resp.status === 401 || resp.status === 403 ? 1 : fallbackExit);
 }
 
 function normalizeRecoverableErrorCode(code, message) {
@@ -3595,10 +3594,7 @@ view is the single source of truth.`);
     }),
   });
   const data = await resp.json().catch(() => ({}));
-  if (!resp.ok) {
-    console.error(`POST /api/applied-plugins/export failed: ${resp.status} ${JSON.stringify(data)}`);
-    process.exit(1);
-  }
+  if (!resp.ok) return structuredHttpFailure(resp, 'daemon-not-running', data);
   if (flags.json) return process.stdout.write(JSON.stringify(data, null, 2) + '\n');
   console.log(`[export] ${data.folder} (snapshot ${data.snapshotId})`);
   for (const f of data.files ?? []) console.log(`  ${f}`);
@@ -3707,10 +3703,7 @@ Common options:
       }
       const resp = await fetch(`${base}/api/marketplaces/${encodeURIComponent(id)}/plugins`);
       const data = await resp.json().catch(() => ({}));
-      if (!resp.ok) {
-        console.error(`plugins failed: ${resp.status} ${JSON.stringify(data)}`);
-        process.exit(1);
-      }
+      if (!resp.ok) return structuredHttpFailure(resp, 'daemon-not-running', data);
       const plugins = Array.isArray(data?.plugins) ? data.plugins : [];
       if (flags.json) {
         process.stdout.write(JSON.stringify({ marketplaceId: id, plugins }, null, 2) + '\n');
@@ -3732,10 +3725,7 @@ Common options:
         ? await fetch(`${base}/api/marketplaces/${encodeURIComponent(id)}`)
         : await fetch(`${base}/api/marketplaces`);
       const data = await resp.json().catch(() => ({}));
-      if (!resp.ok) {
-        console.error(`doctor failed: ${resp.status} ${JSON.stringify(data)}`);
-        process.exit(1);
-      }
+      if (!resp.ok) return structuredHttpFailure(resp, 'daemon-not-running', data);
       const rows = id ? [data] : (data?.marketplaces ?? []);
       const { doctorMarketplace } = await import('./plugins/marketplace-doctor.js');
       const reports = [];
@@ -3787,10 +3777,7 @@ Common options:
         body: JSON.stringify({ url, trust }),
       });
       const data = await resp.json().catch(() => ({}));
-      if (!resp.ok) {
-        console.error(`add failed: ${resp.status} ${JSON.stringify(data)}`);
-        process.exit(1);
-      }
+      if (!resp.ok) return structuredHttpFailure(resp, 'daemon-not-running', data);
       console.log(`[marketplace] added ${data.id} (${data.url}) trust=${data.trust}`);
       return;
     }
@@ -3821,10 +3808,7 @@ Common options:
         ...(body ? { headers: { 'content-type': 'application/json' }, body } : {}),
       });
       const data = await resp.json().catch(() => ({}));
-      if (!resp.ok) {
-        console.error(`${sub} failed: ${resp.status} ${JSON.stringify(data)}`);
-        process.exit(1);
-      }
+      if (!resp.ok) return structuredHttpFailure(resp, 'daemon-not-running', data);
       process.stdout.write(JSON.stringify(data, null, 2) + '\n');
       return;
     }
@@ -3871,10 +3855,7 @@ async function runPluginSnapshots(args) {
       console.error(`snapshot ${id} not found`);
       process.exit(72);
     }
-    if (!resp.ok) {
-      console.error(`GET ${url} failed: ${resp.status} ${await resp.text()}`);
-      process.exit(1);
-    }
+    if (!resp.ok) return structuredHttpFailure(resp);
     const data = await resp.json();
     process.stdout.write(JSON.stringify(data, null, 2) + '\n');
     return;
@@ -3933,10 +3914,7 @@ async function runPluginSnapshots(args) {
       ? `${base}/api/projects/${encodeURIComponent(flags.project)}/applied-plugins`
       : `${base}/api/applied-plugins`;
     const resp = await fetch(url, { headers: workspaceHeaders });
-    if (!resp.ok) {
-      console.error(`GET ${url} failed: ${resp.status} ${await resp.text()}`);
-      process.exit(1);
-    }
+    if (!resp.ok) return structuredHttpFailure(resp);
     const data = await resp.json();
     process.stdout.write(JSON.stringify(data, null, 2) + '\n');
     return;
@@ -3949,10 +3927,7 @@ async function runPluginSnapshots(args) {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(before ? { before } : {}),
     });
-    if (!resp.ok) {
-      console.error(`POST ${url} failed: ${resp.status} ${await resp.text()}`);
-      process.exit(1);
-    }
+    if (!resp.ok) return structuredHttpFailure(resp);
     const data = await resp.json();
     if (flags.json) {
       process.stdout.write(JSON.stringify(data, null, 2) + '\n');
@@ -3996,8 +3971,7 @@ async function runPluginRun(rest) {
   });
   const applyData = await applyResp.json().catch(() => ({}));
   if (!applyResp.ok) {
-    console.error(`apply failed: ${applyResp.status} ${JSON.stringify(applyData)}`);
-    process.exit(applyResp.status === 422 ? 67 : 1);
+    return structuredHttpFailure(applyResp, 'CLI_REQUEST_FAILED', applyData, applyResp.status === 422 ? 67 : 1);
   }
   // 2. Start the run with pluginId so the daemon resolver pins the
   //    snapshot to the run object.
@@ -4019,13 +3993,13 @@ async function runPluginRun(rest) {
   const runData = await runResp.json().catch(() => ({}));
   if (!runResp.ok) {
     if (runResp.status === 409 && runData?.error?.code === 'capabilities-required') {
+      if (flags.json) return structuredHttpFailure(runResp, 'capabilities-required', runData, 66);
       const missing = (runData.error.data?.missing ?? []).join(',');
       console.error(`[run] capabilities required: ${missing}`);
       console.error(`[run] retry with --grant-caps ${missing} or run \`od plugin trust ${id} --capabilities ${missing}\``);
       process.exit(66);
     }
-    console.error(`run failed: ${runResp.status} ${JSON.stringify(runData)}`);
-    process.exit(1);
+    return structuredHttpFailure(runResp, 'daemon-not-running', runData);
   }
   if (flags.json) {
     process.stdout.write(JSON.stringify({ apply: applyData, run: runData }, null, 2) + '\n');
@@ -4136,10 +4110,7 @@ Prints an at-a-glance plugin + snapshot inventory:
   const base = (await pluginDaemonUrl(flags)).replace(/\/$/, '');
   const url = `${base}/api/plugins/stats`;
   const resp = await pluginFetch(flags, url);
-  if (!resp.ok) {
-    console.error(`GET ${url} failed: ${resp.status} ${await resp.text()}`);
-    process.exit(1);
-  }
+  if (!resp.ok) return structuredHttpFailure(resp);
   const data = await resp.json();
   if (flags.json) {
     process.stdout.write(JSON.stringify(data, null, 2) + '\n');
@@ -4186,10 +4157,7 @@ function formatTimestamp(ts) {
 async function fetchPluginList(flags) {
   const url = `${(await pluginDaemonUrl(flags)).replace(/\/$/, '')}/api/plugins`;
   const resp = await pluginFetch(flags, url);
-  if (!resp.ok) {
-    console.error(`GET /api/plugins failed: ${resp.status} ${await resp.text()}`);
-    process.exit(1);
-  }
+  if (!resp.ok) return structuredHttpFailure(resp);
   const data = await resp.json();
   return data;
 }
@@ -4270,10 +4238,7 @@ async function runPluginInfo(rest) {
       return;
     }
   }
-  if (!resp.ok) {
-    console.error(`GET /api/plugins/${id} failed: ${resp.status} ${await resp.text()}`);
-    process.exit(1);
-  }
+  if (!resp.ok) return structuredHttpFailure(resp);
   const data = await resp.json();
   process.stdout.write(JSON.stringify(data, null, 2) + '\n');
 }
@@ -4344,13 +4309,11 @@ async function runPluginManifest(rest) {
   const url = `${(await pluginDaemonUrl(flags)).replace(/\/$/, '')}/api/plugins/${encodeURIComponent(id)}`;
   const resp = await pluginFetch(flags, url);
   if (resp.status === 404) {
+    if (flags.json) return structuredHttpFailure(resp, 'plugin-not-found', undefined, 65);
     console.error(`plugin ${id} not found`);
     process.exit(65);
   }
-  if (!resp.ok) {
-    console.error(`GET /api/plugins/${id} failed: ${resp.status} ${await resp.text()}`);
-    process.exit(1);
-  }
+  if (!resp.ok) return structuredHttpFailure(resp);
   const data = await resp.json();
   if (!data?.manifest) {
     console.error(`plugin ${id} has no recorded manifest (registry row is incomplete)`);
@@ -4368,10 +4331,7 @@ async function runPluginSources(rest) {
   const flags = parseFlags(rest, { string: PLUGIN_STRING_FLAGS, boolean: PLUGIN_BOOLEAN_FLAGS });
   const url = `${(await pluginDaemonUrl(flags)).replace(/\/$/, '')}/api/plugins`;
   const resp = await pluginFetch(flags, url);
-  if (!resp.ok) {
-    console.error(`GET /api/plugins failed: ${resp.status} ${await resp.text()}`);
-    process.exit(1);
-  }
+  if (!resp.ok) return structuredHttpFailure(resp);
   const data = await resp.json();
   const plugins = Array.isArray(data?.plugins) ? data.plugins : [];
   const buckets = new Map();
@@ -4422,8 +4382,7 @@ async function runPluginInstall(rest) {
     body: JSON.stringify({ source }),
   });
   if (!resp.ok || !resp.body) {
-    console.error(`POST /api/plugins/install failed: ${resp.status} ${await resp.text()}`);
-    process.exit(1);
+    return structuredHttpFailure(resp);
   }
   const reader = resp.body.getReader();
   const decoder = new TextDecoder();
@@ -4521,10 +4480,7 @@ Lifecycle vocabulary:
   if (sub === 'snapshot') {
     const url = `${base}/api/plugins/events/snapshot${Number.isFinite(since) && since > 0 ? `?since=${since}` : ''}`;
     const resp = await fetch(url);
-    if (!resp.ok) {
-      console.error(`GET ${url} failed: ${resp.status} ${await resp.text()}`);
-      process.exit(1);
-    }
+    if (!resp.ok) return structuredHttpFailure(resp);
     const data = await resp.json();
     const events = (Array.isArray(data?.events) ? data.events : []).filter(matches);
     if (flags.json) {
@@ -4556,10 +4512,7 @@ Lifecycle vocabulary:
       process.exit(2);
     }
     const resp = await fetch(`${base}/api/plugins/events/purge`, { method: 'POST' });
-    if (!resp.ok) {
-      console.error(`POST /api/plugins/events/purge failed: ${resp.status} ${await resp.text()}`);
-      process.exit(1);
-    }
+    if (!resp.ok) return structuredHttpFailure(resp);
     const data = await resp.json();
     if (purgeFlags.json) {
       process.stdout.write(JSON.stringify(data, null, 2) + '\n');
@@ -4571,10 +4524,7 @@ Lifecycle vocabulary:
 
   if (sub === 'stats') {
     const resp = await fetch(`${base}/api/plugins/events/stats`);
-    if (!resp.ok) {
-      console.error(`GET /api/plugins/events/stats failed: ${resp.status} ${await resp.text()}`);
-      process.exit(1);
-    }
+    if (!resp.ok) return structuredHttpFailure(resp);
     const data = await resp.json();
     if (flags.json) {
       process.stdout.write(JSON.stringify(data, null, 2) + '\n');
@@ -4599,8 +4549,7 @@ Lifecycle vocabulary:
   const url = `${base}/api/plugins/events${Number.isFinite(since) && since > 0 ? `?since=${since}` : ''}`;
   const resp = await fetch(url, { headers: { accept: 'text/event-stream' } });
   if (!resp.ok || !resp.body) {
-    console.error(`GET ${url} failed: ${resp.status} ${await resp.text()}`);
-    process.exit(1);
+    return structuredHttpFailure(resp);
   }
   const reader = resp.body.getReader();
   const decoder = new TextDecoder();
@@ -4734,10 +4683,7 @@ Exit codes:
     console.error(`plugin ${id} not found`);
     process.exit(65);
   }
-  if (!pluginResp.ok) {
-    console.error(`GET /api/plugins/${id} failed: ${pluginResp.status} ${await pluginResp.text()}`);
-    process.exit(1);
-  }
+  if (!pluginResp.ok) return structuredHttpFailure(pluginResp);
   const plugin = await pluginResp.json();
 
   // 2. Load .od-verify.json from --config or <fsPath>/.od-verify.json.
@@ -4905,10 +4851,7 @@ Closed signal vocabulary:
     console.error(`plugin ${id} not found`);
     process.exit(65);
   }
-  if (!resp.ok) {
-    console.error(`GET /api/plugins/${id} failed: ${resp.status} ${await resp.text()}`);
-    process.exit(1);
-  }
+  if (!resp.ok) return structuredHttpFailure(resp);
   const plugin = await resp.json();
   const pipeline = plugin?.manifest?.od?.pipeline;
   if (!pipeline || !Array.isArray(pipeline.stages) || pipeline.stages.length === 0) {
@@ -4992,10 +4935,7 @@ fixtures into a plugin's own tests/.`);
     console.error(`snapshot ${id} not found`);
     process.exit(72);
   }
-  if (!resp.ok) {
-    console.error(`GET ${url} failed: ${resp.status} ${await resp.text()}`);
-    process.exit(1);
-  }
+  if (!resp.ok) return structuredHttpFailure(resp);
   if (checkPath) {
     const fs = await import('node:fs/promises');
     let expected;
@@ -5111,10 +5051,7 @@ async function runPluginUpgrade(rest) {
     }),
   });
   if (!resp.ok || !resp.body) {
-    let msg = '';
-    try { msg = await resp.text(); } catch { msg = ''; }
-    console.error(`POST /api/plugins/${id}/upgrade failed: ${resp.status} ${msg}`);
-    process.exit(1);
+    return structuredHttpFailure(resp);
   }
   const reader = resp.body.getReader();
   const decoder = new TextDecoder();
@@ -5170,10 +5107,7 @@ async function runPluginUninstall(rest) {
   }
   const url = `${(await pluginDaemonUrl(flags)).replace(/\/$/, '')}/api/plugins/${encodeURIComponent(id)}/uninstall`;
   const resp = await pluginFetch(flags, url, { method: 'POST' });
-  if (!resp.ok) {
-    console.error(`POST /api/plugins/${id}/uninstall failed: ${resp.status} ${await resp.text()}`);
-    process.exit(1);
-  }
+  if (!resp.ok) return structuredHttpFailure(resp);
   const data = await resp.json();
   console.log(`[uninstall] ${data?.removedFolder ? 'ok' : 'no-op'}${data?.warning ? ` (warning: ${data.warning})` : ''}`);
 }
@@ -5341,10 +5275,7 @@ Lists and formalizes persisted skill-to-plugin candidates.`);
       { headers: workspaceHeaders },
     );
     const data = await resp.json().catch(() => null);
-    if (!resp.ok) {
-      console.error(`GET plugin candidates failed: ${resp.status} ${JSON.stringify(data)}`);
-      process.exit(1);
-    }
+    if (!resp.ok) return structuredHttpFailure(resp, 'daemon-not-running', data);
     if (flags.json) return process.stdout.write(JSON.stringify(data, null, 2) + '\n');
     const candidates = Array.isArray(data?.candidates) ? data.candidates : [];
     if (candidates.length === 0) {
@@ -6133,10 +6064,7 @@ async function runPluginDoctor(rest) {
   }
   const url = `${(await pluginDaemonUrl(flags)).replace(/\/$/, '')}/api/plugins/${encodeURIComponent(id)}/doctor`;
   const resp = await pluginFetch(flags, url, { method: 'POST' });
-  if (!resp.ok) {
-    console.error(`POST /api/plugins/${id}/doctor failed: ${resp.status} ${await resp.text()}`);
-    process.exit(1);
-  }
+  if (!resp.ok) return structuredHttpFailure(resp);
   const data = await resp.json();
   const issues = Array.isArray(data?.issues) ? data.issues : [];
   const warnings = issues.filter((i) => i?.severity === 'warning');
@@ -6196,10 +6124,7 @@ async function runPluginReplay(rest) {
     body: JSON.stringify({ snapshotId }),
   });
   const data = await resp.json().catch(() => ({}));
-  if (!resp.ok) {
-    console.error(`POST /api/runs/${runId}/replay failed: ${resp.status} ${JSON.stringify(data)}`);
-    process.exit(1);
-  }
+  if (!resp.ok) return structuredHttpFailure(resp, 'daemon-not-running', data);
   if (flags.json) {
     process.stdout.write(JSON.stringify(data, null, 2) + '\n');
     return;
@@ -6249,8 +6174,7 @@ async function runPluginTrust(rest) {
       console.error(`[trust] invalid capabilities: ${rej}`);
       process.exit(2);
     }
-    console.error(`POST ${url} failed: ${resp.status} ${JSON.stringify(data)}`);
-    process.exit(1);
+    return structuredHttpFailure(resp, 'daemon-not-running', data);
   }
   if (flags.json) {
     process.stdout.write(JSON.stringify(data, null, 2) + '\n');
@@ -6306,10 +6230,7 @@ async function runUiList(rest) {
     process.exit(2);
   }
   const resp = await fetch(url, { headers: uiRequestHeaders(flags) });
-  if (!resp.ok) {
-    console.error(`GET ${url} failed: ${resp.status} ${await resp.text()}`);
-    process.exit(1);
-  }
+  if (!resp.ok) return structuredHttpFailure(resp);
   const data = await resp.json();
   if (flags.json) {
     process.stdout.write(JSON.stringify(data, null, 2) + '\n');
@@ -6347,10 +6268,7 @@ async function runUiShow(rest) {
   }
   const url = `${(await uiDaemonUrl(flags)).replace(/\/$/, '')}/api/runs/${encodeURIComponent(runId)}/genui/${encodeURIComponent(surfaceId)}`;
   const resp = await fetch(url, { headers: uiRequestHeaders(flags) });
-  if (!resp.ok) {
-    console.error(`GET ${url} failed: ${resp.status} ${await resp.text()}`);
-    process.exit(1);
-  }
+  if (!resp.ok) return structuredHttpFailure(resp);
   const data = await resp.json();
   // Plan §6 Phase 2A.5 — `--schema` prints the spec's JSON Schema
   // only (null if the surface declares none). Designed to feed
@@ -6404,10 +6322,7 @@ async function runUiRespond(rest) {
     body: JSON.stringify({ value, respondedBy: 'user' }),
   });
   const data = await resp.json().catch(() => ({}));
-  if (!resp.ok) {
-    console.error(`POST ${url} failed: ${resp.status} ${JSON.stringify(data)}`);
-    process.exit(1);
-  }
+  if (!resp.ok) return structuredHttpFailure(resp, 'daemon-not-running', data);
   if (flags.json) {
     process.stdout.write(JSON.stringify(data, null, 2) + '\n');
   } else {
@@ -6441,10 +6356,7 @@ async function runUiRevoke(rest) {
     headers: uiRequestHeaders(flags),
   });
   const data = await resp.json().catch(() => ({}));
-  if (!resp.ok) {
-    console.error(`POST ${url} failed: ${resp.status} ${JSON.stringify(data)}`);
-    process.exit(1);
-  }
+  if (!resp.ok) return structuredHttpFailure(resp, 'daemon-not-running', data);
   if (flags.json) {
     process.stdout.write(JSON.stringify(data, null, 2) + '\n');
   } else {
@@ -6495,10 +6407,7 @@ async function runUiPrefill(rest) {
     }),
   });
   const data = await resp.json().catch(() => ({}));
-  if (!resp.ok) {
-    console.error(`POST ${url} failed: ${resp.status} ${JSON.stringify(data)}`);
-    process.exit(1);
-  }
+  if (!resp.ok) return structuredHttpFailure(resp, 'daemon-not-running', data);
   if (flags.json) {
     process.stdout.write(JSON.stringify(data, null, 2) + '\n');
   } else {
@@ -6758,10 +6667,7 @@ async function runFigma(args) {
       body: JSON.stringify(runBody),
     });
     const runData = await runResp.json().catch(() => ({}));
-    if (!runResp.ok) {
-      console.error(`POST /api/runs failed: ${runResp.status} ${JSON.stringify(runData)}`);
-      process.exit(1);
-    }
+    if (!runResp.ok) return structuredHttpFailure(runResp, 'daemon-not-running', runData);
     if (flags.json) return process.stdout.write(JSON.stringify(runData, null, 2) + '\n');
     console.log(`[figma] migration run started ${runData.runId}`);
     return;
@@ -6806,10 +6712,7 @@ async function runFigma(args) {
       body: JSON.stringify({ projectId: flags.project, message }),
     });
     const runData = await runResp.json().catch(() => ({}));
-    if (!runResp.ok) {
-      console.error(`build run failed: ${runResp.status} ${JSON.stringify(runData)}`);
-      process.exit(1);
-    }
+    if (!runResp.ok) return structuredHttpFailure(runResp, 'daemon-not-running', runData);
     if (flags.json) return process.stdout.write(JSON.stringify({ ...data, build: runData }, null, 2) + '\n');
     console.log(`[figma] build run started ${runData.runId}`);
   }
@@ -7275,10 +7178,11 @@ function normalizeChatSessionModeFlag(value) {
 
 function safeReadJsonFile(p) {
   try {
-    if (p === '-') return JSON.parse(readFileSync(0, 'utf8'));
-    return JSON.parse(readFileSync(p, 'utf8'));
+    const value = JSON.parse(readFileSync(p === '-' ? 0 : p, 'utf8'));
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Expected an object');
+    return value;
   } catch {
-    return null;
+    return exitWithStructuredError({ code: 'CLI_USAGE', message: '--metadata-json requires a readable JSON object file or stdin (-).' });
   }
 }
 
@@ -7539,7 +7443,8 @@ async function runProject(args) {
   od project import <baseDir> [--name "<title>"]
   od project import-folder <path> [--name "<title>"] [--skill <id>]
                     [--design-system <id>] [--json]
-  od project list                         List projects.
+  od project list [--tracker-project <UUID|none>] [--json]
+                                          List projects, optionally filtered by Tracker.
   od project info <id>                    Print one project.
   od project restore-automatic-scenario <id> [--json]
                                           Restore the daemon-selected default
@@ -7625,12 +7530,15 @@ Common options:
       // NOT scope it (#6679 repro), so the explicit path needs the same
       // workspace-scoped endpoint as the implicit path.
       let listResp: any = null;
+      const tracker = flags['tracker-project'];
+      if (!validTrackerFilter(tracker)) return exitWithStructuredError({ code: 'CLI_USAGE', message: '--tracker-project requires a Tracker UUID or none.' });
+      const query = tracker === undefined ? '' : `?trackerProjectId=${encodeURIComponent(tracker)}`;
       let scopeHeaders: Record<string, string> = {};
       if (explicitWorkspaceHeaders) {
         const workspaceId = String(flags.workspace).trim();
         scopeHeaders = explicitWorkspaceHeaders;
         listResp = await fetch(
-          `${base}/api/workspaces/${encodeURIComponent(workspaceId)}/projects`,
+          `${base}/api/workspaces/${encodeURIComponent(workspaceId)}/projects${query}`,
           { headers: scopeHeaders },
         );
       } else {
@@ -7638,13 +7546,13 @@ Common options:
         if (ctx) {
           scopeHeaders = ctx.headers;
           listResp = await fetch(
-            `${base}/api/workspaces/${encodeURIComponent(ctx.workspaceId)}/projects`,
+            `${base}/api/workspaces/${encodeURIComponent(ctx.workspaceId)}/projects${query}`,
             { headers: scopeHeaders },
           );
         }
       }
       if (!listResp) {
-        listResp = await fetch(`${base}/api/projects`, { headers: workspaceHeaders });
+        listResp = await fetch(`${base}/api/projects${query}`, { headers: workspaceHeaders });
       }
       if (!listResp.ok) return structuredHttpFailure(listResp);
       const data = await listResp.json();
@@ -7745,7 +7653,7 @@ Common options:
       const conversationMode = normalizeChatSessionModeFlag(flags.mode);
       if (conversationMode) body.conversationMode = conversationMode;
       if (flags['pending-prompt']) body.pendingPrompt = flags['pending-prompt'];
-      if (flags['metadata-json']) {
+      if (flags['metadata-json'] !== undefined) {
         const mj = safeReadJsonFile(flags['metadata-json']);
         if (mj && typeof mj === 'object') body.metadata = mj;
       }
@@ -7805,8 +7713,7 @@ Common options:
             },
           });
         }
-        console.error(`POST /api/projects failed: ${resp.status} ${JSON.stringify(data)}`);
-        process.exit(1);
+        return structuredHttpFailure(resp, 'daemon-not-running', data);
       }
       if (flags.json) return process.stdout.write(JSON.stringify(data, null, 2) + '\n');
       console.log(`[project] created ${data.project?.id ?? id} (conversation ${data.conversationId})`);
@@ -7963,9 +7870,7 @@ Common options:
       });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) {
-        if (flags.json) process.stdout.write(JSON.stringify(data, null, 2) + '\n');
-        else console.error(`POST /api/projects/${id}/open-in failed: ${resp.status} ${JSON.stringify(data)}`);
-        process.exit(1);
+        return structuredHttpFailure(resp, 'daemon-not-running', data);
       }
       if (flags.json) return process.stdout.write(JSON.stringify(data, null, 2) + '\n');
       console.log(`[project] opened ${id} in ${editor} (${data.path ?? ''})`);
@@ -8114,10 +8019,7 @@ Common options:
       },
     });
     const data = await resp.json().catch(() => ({}));
-    if (!resp.ok) {
-      console.error(`${init?.method ?? 'GET'} ${path} failed: ${resp.status} ${JSON.stringify(data)}`);
-      process.exit(1);
-    }
+    if (!resp.ok) return structuredHttpFailure(resp, 'daemon-not-running', data);
     return data;
   }
 
@@ -8292,10 +8194,7 @@ Common options:
       },
     });
     const data = await resp.json().catch(() => ({}));
-    if (!resp.ok) {
-      console.error(`${init?.method ?? 'GET'} ${path} failed: ${resp.status} ${JSON.stringify(data)}`);
-      process.exit(1);
-    }
+    if (!resp.ok) return structuredHttpFailure(resp, 'daemon-not-running', data);
     return data;
   }
   switch (sub) {
@@ -8726,8 +8625,7 @@ Common options:
             data:    data.error.data,
           }, byokProvider?.apiKey);
         }
-        console.error(`POST /api/runs failed: ${resp.status} ${serializeRunCliJson(data, byokProvider?.apiKey)}`);
-        process.exit(1);
+        return exitWithStructuredError({ code: 'CLI_REQUEST_FAILED', message: `Run request failed (HTTP ${resp.status}).` }, byokProvider?.apiKey);
       }
       if (flags.json && !flags.follow) {
         return process.stdout.write(serializeRunCliJson(data, byokProvider?.apiKey, 2) + '\n');
@@ -8744,9 +8642,11 @@ Common options:
 
 function serializeRunCliJson(value, byokApiKey, indentation) {
   // Only redact printed values; Run ids and task-chain decisions keep raw data.
-  const secrets = byokApiKey ? [byokApiKey, JSON.stringify(byokApiKey).slice(1, -1)] : [];
+  const secrets = [byokApiKey, process.env.PDLC_API_TOKEN, process.env.OD_TOOL_TOKEN]
+    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+    .flatMap(value => [value, JSON.stringify(value).slice(1, -1)]);
   return JSON.stringify(value, (_key, entry) => (
-    typeof entry === 'string' && byokApiKey ? redactSecrets(entry, secrets) : entry
+    typeof entry === 'string' && secrets.length ? redactSecrets(entry, secrets) : entry
   ), indentation);
 }
 
@@ -8766,8 +8666,7 @@ async function streamRunEvents(base, initialRunId, workspaceHeaders = {}, byokAp
       headers: { accept: 'text/event-stream', ...workspaceHeaders },
     });
     if (!resp.ok || !resp.body) {
-      console.error(`run watch failed: ${resp.status}`);
-      process.exit(1);
+      return structuredHttpFailure(resp);
     }
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
@@ -8905,8 +8804,7 @@ async function attachTerminal(base, projectId, terminalId, workspaceHeaders = {}
       headers: { accept: 'text/event-stream', ...workspaceHeaders },
     });
     if (!resp.ok || !resp.body) {
-      console.error(`shell attach failed: ${resp.status}`);
-      process.exit(1);
+      return structuredHttpFailure(resp);
     }
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
@@ -9802,10 +9700,7 @@ vacuum:
   const base = (await libraryDaemonUrl(flags)).replace(/\/$/, '');
   if (sub === 'vacuum') {
     const resp = await fetch(`${base}/api/daemon/db/vacuum`, { method: 'POST' });
-    if (!resp.ok) {
-      console.error(`POST /api/daemon/db/vacuum failed: ${resp.status} ${await resp.text()}`);
-      process.exit(1);
-    }
+    if (!resp.ok) return structuredHttpFailure(resp);
     const data = await resp.json();
     if (flags.json) {
       process.stdout.write(JSON.stringify(data, null, 2) + '\n');
@@ -9823,10 +9718,7 @@ vacuum:
     });
     const url = `${base}/api/daemon/db/verify${verifyFlags.quick ? '?quick=1' : ''}`;
     const resp = await fetch(url, { method: 'POST' });
-    if (!resp.ok) {
-      console.error(`POST ${url} failed: ${resp.status} ${await resp.text()}`);
-      process.exit(1);
-    }
+    if (!resp.ok) return structuredHttpFailure(resp);
     const data = await resp.json();
     if (flags.json) {
       process.stdout.write(JSON.stringify(data, null, 2) + '\n');
@@ -9846,10 +9738,7 @@ vacuum:
     process.exit(2);
   }
   const resp = await fetch(`${base}/api/daemon/db`);
-  if (!resp.ok) {
-    console.error(`GET /api/daemon/db failed: ${resp.status} ${await resp.text()}`);
-    process.exit(1);
-  }
+  if (!resp.ok) return structuredHttpFailure(resp);
   const data = await resp.json();
   if (flags.json) {
     process.stdout.write(JSON.stringify(data, null, 2) + '\n');
@@ -10382,18 +10271,7 @@ async function runSkillInstall(rest) {
     });
     const body = await resp.json().catch(() => ({}));
     if (!resp.ok) {
-      const message = body?.error ?? `Skill install failed (${resp.status})`;
-      if (flags.json) {
-        console.log(JSON.stringify({
-          ok: false,
-          status: resp.status,
-          code: body?.code ?? null,
-          error: message,
-        }));
-      } else {
-        console.error(`POST /api/skills/install failed: ${resp.status} ${message}`);
-      }
-      process.exit(1);
+      return structuredHttpFailure(resp, 'CLI_REQUEST_FAILED', body);
     }
     if (flags.json) return process.stdout.write(JSON.stringify(body, null, 2) + '\n');
     console.log(`[install] ${body?.skill?.id ?? body?.skill?.name ?? source}`);
@@ -10418,12 +10296,7 @@ async function runSkillUninstall(rest) {
   });
   const body = await resp.json().catch(() => ({}));
   if (!resp.ok) {
-    if (flags.json) {
-      console.log(JSON.stringify({ ok: false, id, status: resp.status, error: body?.error ?? null }));
-    } else {
-      console.error(`DELETE /api/skills/${id} failed: ${resp.status} ${body?.error ?? ''}`.trim());
-    }
-    process.exit(1);
+    return structuredHttpFailure(resp, 'CLI_REQUEST_FAILED', body);
   }
   if (flags.json) console.log(JSON.stringify({ ok: true, id }));
   else console.log(`[uninstall] ${id} removed`);
@@ -12547,10 +12420,7 @@ async function runAutomation(args) {
         process.exit(3);
       }
       const data = await resp.json().catch(() => ({}));
-      if (!resp.ok) {
-        console.error(`POST /api/routines failed: ${resp.status} ${JSON.stringify(data)}`);
-        process.exit(1);
-      }
+      if (!resp.ok) return structuredHttpFailure(resp, 'daemon-not-running', data);
       if (flags.json) return writeJson(data);
       console.log(`[automation] created ${data.routine?.id}`);
       console.log(formatAutomationRow(data.routine));
@@ -12602,10 +12472,7 @@ async function runAutomation(args) {
         process.exit(3);
       }
       const data = await resp.json().catch(() => ({}));
-      if (!resp.ok) {
-        console.error(`PATCH /api/routines/${id} failed: ${resp.status} ${JSON.stringify(data)}`);
-        process.exit(1);
-      }
+      if (!resp.ok) return structuredHttpFailure(resp, 'daemon-not-running', data);
       if (flags.json) return writeJson(data);
       console.log(`[automation] updated ${id}`);
       console.log(formatAutomationRow(data.routine));
@@ -12627,10 +12494,7 @@ async function runAutomation(args) {
         process.exit(3);
       }
       const data = await resp.json().catch(() => ({}));
-      if (!resp.ok) {
-        console.error(`PATCH /api/routines/${id} failed: ${resp.status} ${JSON.stringify(data)}`);
-        process.exit(1);
-      }
+      if (!resp.ok) return structuredHttpFailure(resp, 'daemon-not-running', data);
       if (flags.json) return writeJson(data);
       console.log(`[automation] ${sub}d ${id}`);
       return;
@@ -12648,8 +12512,7 @@ async function runAutomation(args) {
       }
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok && resp.status !== 202) {
-        console.error(`POST /api/routines/${id}/run failed: ${resp.status} ${JSON.stringify(data)}`);
-        process.exit(1);
+        return structuredHttpFailure(resp, 'daemon-not-running', data);
       }
       if (flags.json) return writeJson(data);
       console.log(`[automation] triggered ${id}`);

@@ -3458,6 +3458,8 @@ export function registerProjectRoutes(app: Express, ctx: RegisterProjectRoutesDe
 
   app.get('/api/workspaces/:workspaceId/projects', async (req, res) => {
     try {
+      const trackerFilter = req.query.trackerProjectId;
+      if (!validTrackerFilter(trackerFilter)) return sendApiError(res, 400, 'BAD_REQUEST', 'invalid Tracker project filter');
       const authoritativeCtx = await authoritativeWorkspaceProjectContext(
         req,
         res,
@@ -3519,6 +3521,7 @@ export function registerProjectRoutes(app: Express, ctx: RegisterProjectRoutesDe
         ...(remoteMerge?.remoteSummaries ?? []),
       ];
       const projects = mergedProjects
+        .filter((project: { metadata?: ProjectMetadata | null }) => matchesTrackerProject(project.metadata, trackerFilter))
         .filter((project: any) => {
           const createdByCurrentMember = workspaceProjectCreatedByCurrentMember(project, ctx);
           // Personal projects are private to their recorded creator, even when
@@ -4947,6 +4950,7 @@ export function registerProjectRoutes(app: Express, ctx: RegisterProjectRoutesDe
       if (!sourceProject || !projectVisibleForLocations(sourceProject, locations)) {
         return sendApiError(res, 404, 'PROJECT_NOT_FOUND', 'not found');
       }
+      if (!await validateNewTrackerBinding(res, sourceProject.metadata?.trackerProjectId)) return;
       const createHome = await resolveCreatedProjectHome(req);
       // recvqbhor3pai2 — same reasoning as the sibling /duplicate route just
       // above: a never-bound source project must not be permanently
@@ -5007,6 +5011,7 @@ export function registerProjectRoutes(app: Express, ctx: RegisterProjectRoutesDe
           nameSource: 'generated',
           sourceProjectId: sourceProject.id,
           sourceProjectName: sourceProject.name,
+          ...(sourceProject.metadata?.trackerProjectId ? { trackerProjectId: sourceProject.metadata.trackerProjectId } : {}),
         };
         await ensureProject(PROJECTS_DIR, targetProjectId, metadata);
 

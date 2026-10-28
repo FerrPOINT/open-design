@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Button, ProjectPicker } from '@pdlc/ui/ui';
 import { useI18n } from '../i18n';
-import { useRoute, navigatePath, confirmProductLeave } from '../router';
+import { useRoute, navigatePath } from '../router';
 import { useTrackerProject, setTrackerProject, selectedTrackerProject } from './tracker-context';
 
 interface TrackerProject { id: string; key: string; name: string; }
@@ -51,11 +51,12 @@ export function TrackerProjectPicker({ subject }: { subject: string }) {
       else sessionStorage.removeItem(storageKey);
     } catch { /* Working context is optional tab state, never access authority. */ }
   }, [selected, storageKey]);
-  return <div className="pdlc-tracker-picker"><ProjectPicker value={selected || 'none'} onChange={id => { void (async () => {
-    if (!await confirmProductLeave()) return;
-    setTrackerProject(id === 'none' ? '' : id);
-    navigatePath('/projects');
-  })(); }} style={{ maxWidth: 240 }}
+  return <div className="pdlc-tracker-picker"><ProjectPicker value={selected || 'none'} allowEmpty={false} onChange={id => {
+    const commit = () => setTrackerProject(id === 'none' ? '' : id);
+    navigatePath('/projects', { onCommit: commit, onCancel: reason => {
+      if (reason === 'same_route') commit();
+    } });
+  }} style={{ maxWidth: 240 }}
     aria-label={ru ? 'Проект Task Tracker' : 'Task Tracker project'}
     placeholder={ru ? 'Проект недоступен' : 'Project unavailable'}
     options={[{ value: 'none', label: ru ? 'Без проекта' : 'Unassigned' },
