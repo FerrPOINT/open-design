@@ -9107,6 +9107,7 @@ export async function startServer({
   // Resource catalog
   registerStaticResourceRoutes(app, {
     db,
+    agentEnvironments: inferenceAgentEnvs,
     http: httpDeps,
     paths: pathDeps,
     verifyWorkspaceReadAuthority,

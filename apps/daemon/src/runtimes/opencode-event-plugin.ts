@@ -43,12 +43,12 @@ export const OPEN_CODE_EVENT_PLUGIN_SOURCE = String.raw`export default async fun
             try {
               const result = await reader.read();
               if (result.done) {
-                if (!sse || completed) pending.delete(digest);
+                if (completed) pending.delete(digest);
                 controller.close();
                 return;
               }
               tail += decoder.decode(result.value, { stream: true });
-              if (/(?:^|\r?\n)data:\s*\[DONE\]\s*(?:\r?\n|$)/.test(tail)) completed = true;
+              if (sse && /(?:^|\r?\n\r?\n)data: ?\[DONE\]\r?\n\r?\n/.test(tail)) completed = true;
               tail = tail.slice(-128);
               controller.enqueue(result.value);
             } catch (error) { controller.error(error); }

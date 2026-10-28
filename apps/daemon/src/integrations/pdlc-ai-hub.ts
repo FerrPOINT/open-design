@@ -14,7 +14,7 @@ export function pdlcAiHubProvider(dataDir: string, pdlcMode: boolean) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
     throw new Error('PDLC AI Hub private configuration is unavailable or invalid');
   }
-  if (!config || typeof config.origin !== 'string') throw new Error('PDLC AI Hub origin is required');
+  if (!config || typeof config.origin !== 'string' || !config.origin.trim()) throw new Error('PDLC AI Hub origin is required');
   const origin = pdlcAuthOrigin(config.origin, '');
   const model = config.model;
   if (typeof model !== 'string' || !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/.test(model)) {

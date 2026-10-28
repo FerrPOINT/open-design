@@ -17,6 +17,7 @@ afterAll(() => rmSync(root, { recursive: true, force: true }));
 test('standalone stays unchanged; partial configuration and nonlocal HTTP fail closed', () => {
   expect(pdlcAiHubProvider(root, true)).toBeNull();
   expect(() => load({ model: 'main' })).toThrow();
+  expect(() => load({ ...config, origin: '' })).toThrow('origin is required');
   expect(() => load({ ...config, origin: 'http://public.example' })).toThrow();
   expect(() => load({ ...config, origin: 'https://hub.example/redirect' })).toThrow();
   expect(pdlcAiHubProvider(root, false)).toBeNull();

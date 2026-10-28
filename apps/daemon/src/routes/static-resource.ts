@@ -73,6 +73,8 @@ export interface RegisterAtomRoutesDeps {
 }
 
 export interface RegisterStaticResourceRoutesDeps extends RouteDeps<'db' | 'http' | 'paths' | 'resources'> {
+  /** Installation-owned CLI environment; credentials stay in server-side probes. */
+  agentEnvironments?: (saved: Record<string, Record<string, string>>) => Record<string, Record<string, string>>;
   /** Settled, TTL-bounded authority for pure local catalog reads. */
   verifyWorkspaceReadAuthority?: VerifyWorkspaceRequestAuthority;
   /** Fresh authority for mutations, materialization, and detail reads. */
@@ -451,7 +453,7 @@ export function registerStaticResourceRoutes(app: Express, ctx: RegisterStaticRe
       res.status(500).json({ error: String(err) });
       return;
     }
-    const agentCliEnv = config.agentCliEnv ?? {};
+    const agentCliEnv = ctx.agentEnvironments?.(config.agentCliEnv ?? {}) ?? config.agentCliEnv ?? {};
 
     if (!wantsStream) {
       try {

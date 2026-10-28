@@ -49,11 +49,11 @@ test('an uncertain retry retains its UUID; a changed tool step and completed new
   expect(keys[1]).not.toBe(keys[0]);
   expect(keys[3]).not.toBe(keys[2]);
 });
-test('truncated streams retain their UUID, including a stream closed without DONE', async () => {
+test.each(['data: {"choices":[]}\n\n', 'data: [DONE]', 'data: [DONE]\n', 'data: [DONE]invalid\n\n'])('incomplete or invalid DONE retains its UUID: %j', async (body) => {
   const keys: string[] = [];
   const upstream = vi.fn(async (request: Request) => {
     keys.push(request.headers.get('Idempotency-Key')!);
-    return new Response('data: {"choices":[]}\n\n', { headers: { 'content-type': 'text/event-stream' } });
+    return new Response(body, { headers: { 'content-type': 'text/event-stream' } });
   });
   const client = (await transport(upstream as typeof fetch)).fetch!;
   await (await client(endpoint, init())).text();
