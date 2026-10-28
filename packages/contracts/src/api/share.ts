@@ -2373,5 +2373,3 @@ export const COMMENT_BACKFILL_STALE_REVISION_IS_NOT_RENDERED = true;
  * absent still means NOT ATTEMPTED rather than succeeded.
  */
 export const COMMENT_BACKFILL_REQUIRES_A_NAMED_FILE = true;
-
-
