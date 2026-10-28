@@ -194,7 +194,8 @@ corepack pnpm exec od project create --name "Новая работа" --metadata
 corepack pnpm exec od files list WORK_ID --json
 corepack pnpm exec od files read WORK_ID index.html
 corepack pnpm exec od files write WORK_ID index.html --json < updated.html
-corepack pnpm exec od files rename WORK_ID draft.html ready.html --json
+corepack pnpm exec od files rename WORK_ID index.html ready.html --json
+corepack pnpm exec od files rename WORK_ID ready.html index.html --json
 corepack pnpm exec od conversation new WORK_ID --title "Доработка" --json
 corepack pnpm exec od conversation info CONVERSATION_ID --json
 corepack pnpm exec od conversation messages CONVERSATION_ID --json
