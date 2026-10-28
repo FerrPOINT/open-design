@@ -776,9 +776,7 @@ export async function createProject(
   retryOptions: CreateProjectRetryOptions = {},
 ): Promise<{ project: Project; conversationId: string; appliedPluginSnapshotId?: string }> {
   const maxRetries = retryOptions.maxRetries ?? 3;
-  if (isPdlcMode() && selectedTrackerProject()) {
-    input = { ...input, metadata: { kind: 'prototype', ...input.metadata, trackerProjectId: selectedTrackerProject() } };
-  }
+  const trackerProjectId = isPdlcMode() ? selectedTrackerProject() : '';
   const sleep = retryOptions.sleep ?? defaultRetrySleep;
   const backoff = new BackoffController(
     retryOptions.backoff ?? DEFAULT_CREATE_PROJECT_RETRY_BACKOFF,
@@ -802,7 +800,9 @@ export async function createProject(
           'Content-Type': 'application/json',
           ...(input.workspaceContext ? workspaceProjectHeaders(input.workspaceContext) : {}),
         },
-        body: JSON.stringify({ id, ...omitWorkspaceContext(input) }),
+        body: JSON.stringify({ id, ...omitWorkspaceContext(input),
+          ...(trackerProjectId ? { metadata: { ...input.metadata, trackerProjectId } } : {}),
+        }),
       });
       if (resp.ok) {
         const created = (await resp.json()) as {
