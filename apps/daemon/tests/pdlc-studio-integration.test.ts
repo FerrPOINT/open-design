@@ -10,6 +10,7 @@ import type { ProjectResponse, ProjectsResponse, ChatRunCreateResponse, ChatRunS
 test('PDLC keeps Tracker bindings durable and never respawns a failed managed CLI', async () => {
   const originalEnv = { ...process.env };
   const ids = [randomUUID(), randomUUID()];
+  let catalogIds = ids;
   const owner = express();
   let issuer = '';
   let modelRequests = 0;
@@ -21,7 +22,7 @@ test('PDLC keeps Tracker bindings durable and never respawns a failed managed CL
       application_access: { schema_version: 1, issuer, subject: 'operator', role: 'user', applications: ['open-design'],
         enforced: true, revision: 1, observed_at: new Date(now).toISOString(), expires_at: new Date(now + 60000).toISOString() } });
   });
-  owner.get('/api/v1/projects', (_req, res) => res.json({ projects: ids.map((id, i) => ({ id, key: `T${i}`, name: `Tracker ${i}` })) }));
+  owner.get('/api/v1/projects', (_req, res) => res.json({ projects: catalogIds.map((id, i) => ({ id, key: `T${i}`, name: `Tracker ${i}` })) }));
   owner.get('/v1/models', (_req, res) => res.json({ data: [{ id: 'main-dev' }] }));
   owner.post('/v1/chat/completions', (_req, res) => { modelRequests++; res.sendStatus(500); });
   const peer = owner.listen(0, '127.0.0.1'); await once(peer, 'listening');
@@ -70,6 +71,11 @@ process.stderr.write('Error: connection reset by peer');process.exit(1);`);
     expect((await call<ProjectResponse>(`/api/projects/${works[0]!.project.id}`)).project.metadata?.trackerProjectId).toBe(ids[0]);
     const duplicate = await call<ProjectResponse>(`/api/projects/${works[0]!.project.id}/duplicate`, {});
     expect(duplicate.project.metadata?.trackerProjectId).toBe(ids[0]);
+    catalogIds = ids.slice(1);
+    const deniedCopy = await fetch(`${url}/api/projects/${works[0]!.project.id}/duplicate`, { headers, method: 'POST', body: '{}' });
+    expect(deniedCopy.status).toBe(403);
+    expect((await call<ProjectResponse>(`/api/projects/${works[0]!.project.id}`)).project.id).toBe(works[0]!.project.id);
+    catalogIds = ids;
     const created = await call<ChatRunCreateResponse>('/api/runs', { projectId: works[0]!.project.id, conversationId: works[0]!.conversationId,
       agentId: 'opencode', message: 'Create a page', currentPrompt: 'Create a page', assistantMessageId: randomUUID(), clientRequestId: randomUUID() });
     const events = await fetch(`${url}/api/runs/${created.runId}/events`, { headers });

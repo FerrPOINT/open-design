@@ -4821,6 +4821,7 @@ export function registerProjectRoutes(app: Express, ctx: RegisterProjectRoutesDe
       if (!sourceProject || !projectVisibleForLocations(sourceProject, locations)) {
         return sendApiError(res, 404, 'PROJECT_NOT_FOUND', 'not found');
       }
+      if (!await validateNewTrackerBinding(res, sourceProject.metadata?.trackerProjectId)) return;
       const createHome = await resolveCreatedProjectHome(req);
       // recvqbhor3pai2: a project this daemon has never bound anywhere (e.g.
       // a copy left unbound by an earlier headerless duplicate — see
