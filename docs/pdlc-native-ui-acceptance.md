@@ -2,11 +2,44 @@
 
 Последняя приёмка: 2026-10-28. Локальная установка `pdlc3`, `http://127.0.0.3:8193/`.
 
-**Готовность:** общий вход и интерфейс проверены; реальный источник ИИ ещё
-не настроен. Генерация через реального провайдера не принята. Прежние fake CLI
-сценарии подтверждали технический pipeline, а не подключение модели.
+**Готовность:** общий вход и интерфейс проверены. Подключение OpenCode к AI Hub
+установлено, выбран `main-dev`; публикация этой виртуальной модели в Hub ещё
+отсутствует, inference клиенту пока не выдан. Реальная генерация не принята.
 
-## Текущая поставка: контраст тёмной темы
+## Текущая поставка: штатный движок и AI Hub
+
+Source/OCI revision: `9d976d21c8f99f0779b241ab2225db16aaab4bd9`.
+Образ: `sha256:0ed55c2fdcb8c967a65cfebfd9fa3586682732bfed6c6e534914a75edb104e33`.
+
+В образ добавлен официальный OpenCode 1.18.30, с проверкой integrity archive.
+Сервер читает приватную конфигурацию Hub и передаёт ключ только дочернему CLI;
+browser/public config ключа не содержит. Состояние CLI сохраняется в хранилище
+студии. Native batch/SSE discovery возвращает `open-design-byok/main-dev`;
+в IAB эта модель выбрана в настоящем пользовательском проекте, его исходный
+запрос сохранён и автоматически не повторялся. UI source не менялся.
+
+Прошли 30 scoped tests, root guard, typecheck, image build. Настоящий OpenCode
+из итогового образа выполнил tool write и создал HTML в изолированной fixture
+через controlled upstream при Docker `--network none`; provider calls 0.
+Это подтверждает движок и транспорт, а не качество ответа реальной модели.
+
+После штатного image apply: healthy, CLI 1.18.30 обнаружен, все 17 served assets
+совпали с образом, index SHA-256 остался
+`b7412212bd3fadffd1c1ed6727563d4f83024d4db5cf116e7ff448987c3cced6`.
+Разговор пользователя и прежний artifact сохранены. Контейнеры, image IDs,
+config hashes и mounts Auth/Tracker/AI Hub совпали до/после cutover.
+Временный проверочный PAT отозван; `od` вернул JSON, exit 1 без Windows crash.
+
+В Hub создан только собственный client `open-design`, ключ `opendesign-studio`
+сохранён в приватной конфигурации студии. Другие clients, provider connection
+и профили не менялись. Последний live catalog содержит только `app-test`;
+`main-dev` есть в upstream catalog, но ещё не опубликован как virtual model.
+Client пока имеет только `read_own_usage`, без inference и allowlist моделей.
+После публикации `main-dev` оператор выдаёт этому client `infer` и UUID профиля,
+проверяет non-billable `GET /v1/models`, затем отдельно принимает реальную генерацию.
+См. [инструкцию подключения](pdlc-ai-hub.md).
+
+## Предыдущая поставка: контраст тёмной темы
 
 Source/OCI revision: `7dab173f6ae6cd6017af625388cb89e6ec62e16f`.
 Образ: `sha256:4da4b6faf9983348ad457a9ec1c46af76e06f658d08c199c49085503ace8b649`.
