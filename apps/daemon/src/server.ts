@@ -3168,6 +3168,12 @@ export async function startServer({
   let daemonShuttingDown = false;
   const pdlcConfig = pdlcConfiguration();
   const pdlcInference = pdlcAiHubProvider(RUNTIME_DATA_DIR, pdlcConfig !== null);
+  function inferenceAgentEnvs(config: Record<string, Record<string, string>> = {}) {
+    return pdlcInference ? { ...config, opencode: {
+      ...config.opencode, ...pdlcInference.env,
+      OPENCODE_CONFIG_CONTENT: JSON.stringify(pdlcInference.config),
+    } } : config;
+  }
   const extraAllowedOrigins = configuredAllowedOrigins();
   const workspaceAuthorityCacheMode = resolveWorkspaceAuthorityCacheMode(
     process.env.OD_WORKSPACE_AUTHORITY_CACHE_MODE,
@@ -3764,7 +3770,7 @@ export async function startServer({
   void readAppConfig(RUNTIME_DATA_DIR)
     .then((config) => {
       orbitService.configure(config.orbit);
-      return detectAgents(config.agentCliEnv ?? {});
+      return detectAgents(inferenceAgentEnvs(config.agentCliEnv));
     })
     .catch(() => detectAgents().catch(() => {}));
 
@@ -9250,7 +9256,7 @@ export async function startServer({
         : null;
       let detectedAgentName: string | null = null;
       if (!agentId) {
-        const agents = await detectAgents(config.agentCliEnv ?? {}).catch(() => []);
+        const agents = await detectAgents(inferenceAgentEnvs(config.agentCliEnv)).catch(() => []);
         const available = agents.find((agent) => agent.available);
         agentId = available?.id ?? null;
         detectedAgentName = available?.name ?? null;
@@ -14559,7 +14565,8 @@ export async function startServer({
       }, agentLaunch);
       if (def.id === 'opencode' || def.id === 'byok-opencode') {
         try {
-          const versions = await ensureDetectedRuntimeVersions('opencode', configuredAgentEnv);
+          const versions = await ensureDetectedRuntimeVersions('opencode', managedHubRun
+            ? inferenceAgentEnvs({ opencode: configuredAgentEnv }).opencode : configuredAgentEnv);
           if (!versions?.agentCliVersion) {
             console.info('[opencode] optional tool previews disabled: CLI version unavailable; later launches retry detection after the short cache expires');
           }
@@ -17240,7 +17247,7 @@ export async function startServer({
       ? appConfig.agentId
       : null;
     if (!agentId) {
-      const agents = await detectAgents(appConfig.agentCliEnv ?? {}).catch(() => []);
+      const agents = await detectAgents(inferenceAgentEnvs(appConfig.agentCliEnv)).catch(() => []);
       agentId = agents.find((agent) => agent.available)?.id ?? null;
     }
     if (!agentId) throw new Error('No available agent is configured for Orbit. Choose an agent in Settings first.');
@@ -17483,7 +17490,7 @@ export async function startServer({
     let agentId = routine.agentId
       || (typeof appConfig.agentId === 'string' && appConfig.agentId ? appConfig.agentId : null);
     if (!agentId) {
-      const agents = await detectAgents(appConfig.agentCliEnv ?? {}).catch(() => []);
+      const agents = await detectAgents(inferenceAgentEnvs(appConfig.agentCliEnv)).catch(() => []);
       agentId = agents.find((agent) => agent.available)?.id ?? null;
     }
     if (!agentId) {

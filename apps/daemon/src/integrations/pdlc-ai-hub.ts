@@ -32,5 +32,13 @@ export function pdlcAiHubProvider(dataDir: string, pdlcMode: boolean) {
     enabled_providers: [provider.providerId],
   };
   provider.env.OD_PDLC_AI_HUB_PROVIDER = provider.providerId;
+  // The image filesystem is read-only and its service user has no writable
+  // home. CLI state, cache and configuration belong to this installation.
+  const runtimeRoot = path.join(dataDir, 'agent-runtime', 'opencode');
+  for (const kind of ['DATA', 'CACHE', 'CONFIG', 'STATE']) {
+    provider.env[`XDG_${kind}_HOME`] = path.join(runtimeRoot, kind.toLowerCase());
+  }
+  provider.env.OPENCODE_DISABLE_MODELS_FETCH = 'true';
+  provider.env.OPENCODE_DISABLE_AUTOUPDATE = 'true';
   return provider;
 }

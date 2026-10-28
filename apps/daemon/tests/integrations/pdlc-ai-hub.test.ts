@@ -25,6 +25,8 @@ test('server-owned provider uses only its private file and a single published mo
   const result = load(config)!;
   expect(result.modelId).toBe('open-design-byok/studio-main');
   expect(result.env.OPEN_DESIGN_BYOK_API_KEY).toBe(secret);
+  expect(result.env.XDG_DATA_HOME).toBe(path.join(root, 'agent-runtime', 'opencode', 'data'));
+  expect(result.env.OPENCODE_DISABLE_MODELS_FETCH).toBe('true');
   expect(JSON.stringify(result.config)).not.toContain(secret);
   expect(result.config).toMatchObject({
     model: result.modelId, small_model: result.modelId,
