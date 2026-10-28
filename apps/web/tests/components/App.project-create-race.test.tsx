@@ -869,6 +869,17 @@ function stubWorkspaceContext(
   );
 }
 
+// The EntryView double renders actions during bootstrap. Scope-sensitive cases
+// must wait for the same verified catalog readiness as the real entry surface.
+async function waitForWorkspaceProjectList(workspaceId: string, workspaceMemberId: string) {
+  await waitFor(() => {
+    expect(mockedListProjects).toHaveBeenLastCalledWith(expect.objectContaining({
+      workspaceContext: expect.objectContaining({ workspaceId, workspaceMemberId }),
+    }));
+    expect(screen.getByTestId('entry-projects-loading')).toHaveTextContent('false');
+  });
+}
+
 describe('App project creation routing', () => {
   beforeEach(() => {
     navigationTiming.cancel('page_exit');
@@ -2732,12 +2743,7 @@ describe('App project creation routing', () => {
 
     render(<App />);
 
-    await waitFor(() => {
-      expect(mockedListProjects).toHaveBeenCalledWith(expect.objectContaining({
-        workspaceContext: expect.objectContaining({ workspaceId: 'ws-1', workspaceMemberId: 'wm-1' }),
-      }));
-      expect(screen.getByTestId('entry-projects-loading')).toHaveTextContent('false');
-    });
+    await waitForWorkspaceProjectList('ws-1', 'wm-1');
     fireEvent.click(await screen.findByRole('button', { name: 'Open catalog project' }));
 
     await waitFor(() => {
@@ -3250,12 +3256,7 @@ describe('App project creation routing', () => {
     );
 
     render(<App />);
-    await waitFor(() => {
-      expect(mockedListProjects).toHaveBeenCalledWith(expect.objectContaining({
-        workspaceContext: expect.objectContaining({ workspaceId: 'ws-1', workspaceMemberId: 'wm-1' }),
-      }));
-      expect(screen.getByTestId('entry-projects-loading')).toHaveTextContent('false');
-    });
+    await waitForWorkspaceProjectList('ws-1', 'wm-1');
     await screen.findByTestId('entry-project-project-shared');
     fireEvent.click(screen.getByRole('button', { name: 'Open catalog project' }));
     await screen.findByTestId('project-view');
@@ -3824,6 +3825,7 @@ describe('App project creation routing', () => {
 
     render(<App />);
     await screen.findByTestId('entry-project-project-old-a');
+    await waitForWorkspaceProjectList(context.workspaceId, context.workspaceMemberId);
 
     // Project routes use the `all` projection. Reproduce the real browser
     // state where that projection predates the create performed on Home's
