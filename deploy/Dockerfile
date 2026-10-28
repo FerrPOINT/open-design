@@ -45,15 +45,16 @@ RUN corepack enable && \
     corepack prepare pnpm@10.33.2 --activate && \
     pnpm install --frozen-lockfile
 
-COPY apps/web ./apps/web
-RUN pnpm --filter @open-design/web build
-COPY apps/daemon ./apps/daemon
+COPY apps ./apps
+# Web type checks import bundled plugin manifests.
+COPY plugins/_official ./plugins/_official
 COPY vendor ./apps/daemon/vendor
 # Shared-lockfile deployment preserves the exact graph, unlike legacy re-resolution.
 # pnpm resolves locked local tarballs relative to the deployment root. Include
 # the same verified vendor archive in the daemon payload before export.
 RUN node -e "const fs=require('node:fs');const p='apps/daemon/package.json';const m=JSON.parse(fs.readFileSync(p));m.files.push('vendor');fs.writeFileSync(p,JSON.stringify(m))" && \
     pnpm --filter @open-design/daemon build && \
+    pnpm --filter @open-design/web build && \
     pnpm --config.inject-workspace-packages=true --filter @open-design/daemon deploy --prod /app/deploy/daemon && \
     pnpm store prune && \
     rm -rf \
@@ -101,7 +102,6 @@ COPY assets ./assets
 # image, `loadManifest()` returns `{}` and every plugin silently falls back to
 # the live-iframe preview path — the exact cost the bakes exist to avoid.
 COPY data ./data
-COPY plugins/_official ./plugins/_official
 
 FROM ${RUNTIME_IMAGE}
 ARG SOURCE_REVISION
