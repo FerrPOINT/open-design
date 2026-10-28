@@ -119,7 +119,14 @@ export async function applyOpenCodeEventPlugin(
     const temporary = `${file}.${randomUUID()}.tmp`;
     try {
       await writeFile(temporary, OPEN_CODE_EVENT_PLUGIN_SOURCE, { flag: 'wx', mode: 0o600 });
-      await rename(temporary, file);
+      try { await rename(temporary, file); }
+      catch (error) {
+        // Concurrent launches can publish the same content-addressed module.
+        // Windows may reject the second rename while the first file is open.
+        // Accept only the exact completed artifact; corruption still fails.
+        if (!['EPERM', 'EEXIST'].includes((error as NodeJS.ErrnoException).code ?? '') ||
+          await readFile(file, 'utf8').catch(() => null) !== OPEN_CODE_EVENT_PLUGIN_SOURCE) throw error;
+      }
     } finally {
       await rm(temporary, { force: true });
     }

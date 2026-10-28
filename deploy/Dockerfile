@@ -144,4 +144,3 @@ USER open-design
 COPY --from=agent-runtime /opencode/opencode /usr/local/bin/opencode
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["node", "apps/daemon/dist/cli.js", "--no-open"]
-
