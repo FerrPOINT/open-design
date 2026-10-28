@@ -3434,7 +3434,7 @@ export function registerProjectRoutes(app: Express, ctx: RegisterProjectRoutesDe
       /** @type {import('@open-design/contracts').ProjectsResponse} */
       const body = {
         projects: listUnboundProjects(db)
-          .filter((project) => matchesTrackerProject(project.metadata, trackerFilter))
+          .filter((project: { metadata?: ProjectMetadata | null }) => matchesTrackerProject(project.metadata, trackerFilter))
           .filter((project: any) => projectVisibleForLocations(project, locations))
           .map((project: any) => ({
             ...project,
