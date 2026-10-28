@@ -1,4 +1,5 @@
 import { pendingCommentFileRetirements } from './collab/comment-file-retirements.js';
+import { validateNewTrackerBinding } from './http/pdlc-project-binding.js';
 import { withCommentFileDeletion, type CommentFileDeletion } from './collab/comment-file-deletion.js';
 import type { Express, Response } from 'express';
 import { publicFileMutationHandler } from './routes/public-file-mutation-handler.js';
@@ -120,6 +121,11 @@ export function registerImportRoutes(app: Express, ctx: RegisterImportRoutesDeps
       try {
         if (!req.file)
           return res.status(400).json({ error: 'zip file required' });
+        const trackerProjectId = res.locals.pdlc ? req.get('X-PDLC-Tracker-Project') : undefined;
+        if (!await validateNewTrackerBinding(res, trackerProjectId)) {
+          await fs.promises.unlink(req.file.path).catch(() => {});
+          return;
+        }
         const createWorkspace = await authorizeCreatedProjectWorkspace(
           req,
           ctx.fetchProjectCreationWorkspaceDirectory,
@@ -156,6 +162,7 @@ export function registerImportRoutes(app: Express, ctx: RegisterImportRoutesDeps
             metadata: {
               kind: 'prototype',
               importedFrom: 'claude-design',
+              ...(trackerProjectId ? { trackerProjectId } : {}),
               entryFile: imported.entryFile,
               sourceFileName: originalName,
             },
@@ -374,6 +381,8 @@ export function registerImportRoutes(app: Express, ctx: RegisterImportRoutesDeps
         return sendCreatedProjectWorkspaceError(res, createWorkspace);
       }
       const { baseDir, name, skillId, designSystemId, orchestratorWorkspace } = req.body || {};
+      const trackerProjectId = res.locals.pdlc ? req.get('X-PDLC-Tracker-Project') : undefined;
+      if (!await validateNewTrackerBinding(res, trackerProjectId)) return;
       if (typeof baseDir !== 'string' || !baseDir.trim()) {
         return sendApiError(res, 400, 'BAD_REQUEST', 'baseDir required');
       }
@@ -521,6 +530,7 @@ export function registerImportRoutes(app: Express, ctx: RegisterImportRoutesDeps
             kind: 'prototype',
             baseDir: normalizedPath,
             importedFrom: 'folder',
+            ...(trackerProjectId ? { trackerProjectId } : {}),
             entryFile,
             ...(normalizedOrchestratorWorkspace
               ? { orchestratorWorkspace: normalizedOrchestratorWorkspace }

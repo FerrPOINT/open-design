@@ -193,6 +193,8 @@ export interface DesignSystemReviewEntry {
 }
 
 export interface ProjectMetadata {
+  /** Tracker classification in the shared PDLC studio; not an access grant. */
+  trackerProjectId?: string;
   /** Reserved admitted facts; installed only with the matching local content receipt. */
   _commentFiles?: import('./comments.js').CommentFileState;
   kind: ProjectKind;

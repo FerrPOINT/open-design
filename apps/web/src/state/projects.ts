@@ -7,6 +7,8 @@
 // result changes behavior must preserve failure as a typed error instead.
 
 import { coalescedGet, evictCoalescedGet } from '../lib/coalesced-get';
+import { selectedTrackerProject, trackerProjectQuery, trackerProjectHeaders } from '../pdlc/tracker-context';
+import { isPdlcMode } from '../pdlc/config';
 import { isDaemonProxyConnectionFailure } from '../runtime/daemon-proxy-failure';
 import { BackoffController, type BackoffOptions } from '../lib/backoff';
 import { markProjectCreatedByViewer } from '../collab/useProjectCollab';
@@ -314,8 +316,9 @@ export async function listProjects(options?: {
   // `listWorkspaceProjectSummaries` below and carries the full wire identity
   // plus the requested view.
   try {
-    return await coalescedGet('local-projects', async () => {
-      const resp = await fetch('/api/projects');
+    const query = trackerProjectQuery();
+    return await coalescedGet(`local-projects${query}`, async () => {
+      const resp = await fetch(`/api/projects${query}`);
       // Throw inside the coalesced run so a failed read is not cached — the next
       // caller/poll retries immediately (see coalesced-get.ts).
       if (!resp.ok) throw new Error(`projects ${resp.status}`);
@@ -773,6 +776,9 @@ export async function createProject(
   retryOptions: CreateProjectRetryOptions = {},
 ): Promise<{ project: Project; conversationId: string; appliedPluginSnapshotId?: string }> {
   const maxRetries = retryOptions.maxRetries ?? 3;
+  if (isPdlcMode() && selectedTrackerProject()) {
+    input = { ...input, metadata: { kind: 'prototype', ...input.metadata, trackerProjectId: selectedTrackerProject() } };
+  }
   const sleep = retryOptions.sleep ?? defaultRetrySleep;
   const backoff = new BackoffController(
     retryOptions.backoff ?? DEFAULT_CREATE_PROJECT_RETRY_BACKOFF,
@@ -956,6 +962,7 @@ export async function importFolderProject(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...trackerProjectHeaders(),
       ...(workspaceContext ? workspaceProjectHeaders(workspaceContext) : {}),
     },
     body: JSON.stringify(input),
@@ -979,7 +986,7 @@ export async function importClaudeDesignZip(
   form.append('file', file);
   const resp = await fetch('/api/import/claude-design', {
     method: 'POST',
-    ...(workspaceContext ? { headers: workspaceProjectHeaders(workspaceContext) } : {}),
+    headers: { ...trackerProjectHeaders(), ...(workspaceContext ? workspaceProjectHeaders(workspaceContext) : {}) },
     body: form,
   });
   if (!resp.ok) {
@@ -1121,7 +1128,7 @@ export async function patchProject(
         currentWorkspaceAccountGeneration(),
       );
     } else {
-      evictCoalescedGet('local-projects');
+      evictCoalescedGet(`local-projects${trackerProjectQuery()}`);
     }
     return json.project;
   } catch {
@@ -2068,6 +2075,7 @@ export async function duplicatePluginAsProject(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...trackerProjectHeaders(),
         ...(workspaceContext ? workspaceProjectHeaders(workspaceContext) : {}),
       },
       body: JSON.stringify(input),

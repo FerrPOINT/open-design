@@ -36,11 +36,15 @@ it('selects only Tracker catalog projects and retains the choice in this account
   expect(fetcher).toHaveBeenCalledWith('/api/pdlc/projects', expect.objectContaining({credentials:'same-origin',redirect:'error'}));
 });
 
-it('does not substitute studio projects or a saved inaccessible project for an empty Tracker catalog', async () => {
+it('keeps an unavailable binding visible and allows switching to unassigned without rewriting it', async () => {
   sessionStorage.setItem('open-design:pdlc-tracker-project:bob','unavailable');
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('{"projects":[]}')));
   render(<I18nProvider initial="en"><TrackerProjectPicker subject="bob" /></I18nProvider>);
-  await screen.findByText('No accessible projects');
-  expect(screen.getByRole('button', {name:'Task Tracker project'})).toBeDisabled();
+  await screen.findByText('Project unavailable');
+  const trigger = screen.getByRole('button', {name:'Task Tracker project'});
+  expect(trigger).not.toBeDisabled();
+  expect(sessionStorage.getItem('open-design:pdlc-tracker-project:bob')).toBe('unavailable');
+  fireEvent.pointerDown(trigger, {button:0,ctrlKey:false});
+  fireEvent.click(await screen.findByRole('menuitemradio', {name:'Unassigned'}));
   await vi.waitFor(() => expect(sessionStorage.getItem('open-design:pdlc-tracker-project:bob')).toBeNull());
 });

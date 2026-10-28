@@ -59,6 +59,8 @@ Task Tracker project selection in the platform header. Preserve OpenDesign
 product controls, settings, dialogs, notifications and editor layout. Do not
 replace product primitives with Base components; Base owns only platform chrome.
 Tracker owns the shared project catalog, distinct from studio files/projects.
+Studio works may store their immutable Tracker classification in existing
+`metadata.trackerProjectId`; it is not a new ACL or a second project catalog.
 
 ## Windows native
 

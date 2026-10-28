@@ -1,8 +1,8 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterAll, afterEach, expect, test } from 'vitest';
-import { pdlcAiHubProvider } from '../../src/integrations/pdlc-ai-hub.js';
+import { afterAll, afterEach, expect, test, vi } from 'vitest';
+import { pdlcAiHubProvider, pdlcInferenceStatus } from '../../src/integrations/pdlc-ai-hub.js';
 
 const root = mkdtempSync(path.join(os.tmpdir(), 'od-hub-'));
 const keyFile = path.join(root, 'pdlc-ai-hub.json');
@@ -41,4 +41,29 @@ test('key errors disclose neither the credential nor filesystem details', () => 
   writeFileSync(keyFile, 'sensitive-invalid-value');
   expect(() => load({ ...config, key: 'sensitive-invalid-value' })).toThrow('PDLC AI Hub key is invalid');
   expect(() => load({ ...config, model: 'https://escape.example' })).toThrow('published virtual model slug');
+});
+
+test('access checks use the configured key only against the non-inference catalog', async () => {
+  const request = vi.fn().mockResolvedValue(new Response('{"data":[{"id":"studio-main"}]}'));
+  expect(await pdlcInferenceStatus(load(config), request)).toEqual({ state: 'ready', model: 'studio-main' });
+  expect(request).toHaveBeenCalledExactlyOnceWith('http://hub-local:8191/v1/models', expect.objectContaining({
+    redirect: 'error', headers: { Authorization: `Bearer ${secret}` },
+  }));
+  expect(JSON.stringify(await pdlcInferenceStatus(null, request))).not.toContain(secret);
+  expect(request).toHaveBeenCalledTimes(1);
+});
+
+test.each([[401, 'access_denied'], [403, 'access_denied'], [503, 'hub_unavailable'], [302, 'hub_unavailable']])(
+  'catalog HTTP %i produces a safe %s state', async (status, state) => {
+    const request = vi.fn().mockResolvedValue(new Response('private upstream detail', { status: Number(status) }));
+    expect(await pdlcInferenceStatus(load(config), request)).toEqual({ state, model: 'studio-main' });
+  });
+
+test('missing models, malformed replies and timeout remain distinct from access success', async () => {
+  const request = vi.fn().mockResolvedValueOnce(new Response('{"data":[{"id":"different-model"}]}'))
+    .mockResolvedValueOnce(new Response('{"unexpected":true}')).mockRejectedValueOnce(new Error(secret));
+  const provider = load(config);
+  expect((await pdlcInferenceStatus(provider, request)).state).toBe('model_unavailable');
+  expect((await pdlcInferenceStatus(provider, request)).state).toBe('hub_unavailable');
+  expect(await pdlcInferenceStatus(provider, request)).toEqual({ state: 'hub_unavailable', model: 'studio-main' });
 });

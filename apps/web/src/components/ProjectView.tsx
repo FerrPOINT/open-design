@@ -1,4 +1,5 @@
 import { useStartupReady } from '../observability/startup-ready';
+import { isPdlcMode } from '../pdlc/config';
 import { navigationTiming, useProjectNavigationReady, observeNavigation } from '../observability/navigation-timing';
 import { withLiveArtifactDeliveries } from '../runtime/live-artifact-delivery';
 import { readRetriedErrorSurface, retriedErrorSurfaceKey, writeRetriedErrorSurface } from '../runtime/chat/retried-error-surface';
@@ -2835,6 +2836,7 @@ export function ProjectView({
   const [liveArtifacts, setLiveArtifacts] = useState<LiveArtifactSummary[]>([]);
   const [liveArtifactEvents, setLiveArtifactEvents] = useState<LiveArtifactEventItem[]>([]);
   const [workspaceFocused, setWorkspaceFocused] = useState(false);
+  const [narrowPdlcSplit, setNarrowPdlcSplit] = useState(false);
   // Read by `renderPreferredChatPanelWidth` instead of closing over
   // `workspaceFocused` directly, so that callback's identity (and therefore
   // the ResizeObserver effect keyed on it, below) doesn't need to depend on
@@ -12948,6 +12950,7 @@ export function ProjectView({
     if (!split) return undefined;
 
     const updateAllowedWidth = (options: { animate?: boolean } = {}) => {
+      setNarrowPdlcSplit(isPdlcMode() && split.clientWidth < MIN_CHAT_PANEL_WIDTH + SPLIT_RESIZE_HANDLE_WIDTH + MIN_WORKSPACE_PANEL_WIDTH);
       // Same resolver as the creation frame that may have preceded this view
       // (OPEND-3207): a saved width, else the equal split of the container.
       const layout = resolveProjectSplitLayout(split.clientWidth, {
@@ -14120,6 +14123,8 @@ export function ProjectView({
           wants the Finalize + Continue-in-CLI buttons back in the chrome. */}
       <div
         ref={splitRef}
+        data-pdlc-narrow={narrowPdlcSplit ? 'true' : undefined}
+        data-pdlc-pane={workspaceFocused ? 'files' : 'chat'}
         className={[
           projectSplitClassName(workspaceFocused),
           resizingChatPanel && !workspaceFocused ? 'is-resizing-chat' : '',

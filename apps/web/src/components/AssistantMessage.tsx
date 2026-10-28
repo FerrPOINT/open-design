@@ -1449,6 +1449,7 @@ function AssistantMessageImpl({
                   unfinishedTodoCount: unfinishedTodos.length,
                   hasEmptyResponse,
                   canceled: message.runStatus === "canceled",
+                  cancelOrigin: message.cancelOrigin,
                   preparing,
                   preparingStatus,
                   copyMarkdown,
@@ -1469,6 +1470,7 @@ function AssistantMessageImpl({
                 unfinishedTodoCount={unfinishedTodos.length}
                 hasEmptyResponse={hasEmptyResponse}
                 canceled={message.runStatus === "canceled"}
+                cancelOrigin={message.cancelOrigin}
                 preparing={preparing}
                 preparingStatus={preparingStatus}
                 copyMarkdown={copyMarkdown}
@@ -2151,6 +2153,7 @@ interface AssistantFooterProps {
   unfinishedTodoCount?: number;
   hasEmptyResponse: boolean;
   canceled?: boolean;
+  cancelOrigin?: ChatMessage['cancelOrigin'];
   // Pre-output phase: streaming but nothing rendered yet. The label shimmers
   // "Preparing…"; once content lands it flips to "Working".
   preparing?: boolean;
@@ -2183,6 +2186,7 @@ export function AssistantFooter({
   unfinishedTodoCount = 0,
   hasEmptyResponse,
   canceled = false,
+  cancelOrigin,
   preparing = false,
   preparingStatus = "preparing",
   copyMarkdown,
@@ -2262,7 +2266,7 @@ export function AssistantFooter({
           </span>
           {/* 产品《报错文案》S24c / S24a(OPEND-2849):这两档的状态词是「标题」,
               紧跟一句正文。其余各档只有状态词。 */}
-          {!streaming && !hasEmptyResponse && (canceled || (hasUnfinishedTodos && unfinishedTodoCount > 0)) ? (
+          {!streaming && !hasEmptyResponse && ((canceled && cancelOrigin === 'user_stop') || (!canceled && hasUnfinishedTodos && unfinishedTodoCount > 0)) ? (
             <span className="assistant-label-detail" data-testid="assistant-label-detail">
               {canceled
                 ? t("assistant.canceledDetail")

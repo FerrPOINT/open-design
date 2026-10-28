@@ -21,3 +21,9 @@ export interface PdlcSessionResponse {
   /** Invalidates other studio documents; never grants identity or permissions. */
   identityChanged?: boolean;
 }
+
+/** Access to the configured model, not proof of provider inference health. */
+export interface PdlcInferenceStatus {
+  state: 'ready' | 'not_configured' | 'access_denied' | 'model_unavailable' | 'hub_unavailable';
+  model: string | null;
+}

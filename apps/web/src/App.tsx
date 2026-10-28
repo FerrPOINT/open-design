@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { flushSync } from 'react-dom';
 import { usePdlcReadiness } from './pdlc/readiness';
 import { isPdlcMode } from './pdlc/config';
+import { useTrackerProject, selectedTrackerProject } from './pdlc/tracker-context';
 import { AnimatePresence, motion, MotionConfig } from 'motion/react';
 import { Button } from '@open-design/components';
 import { reportAgentDetectDiagnostics } from './analytics/agent-detect';
@@ -988,6 +989,7 @@ export function App({ platformSubject }: AppProps = {}) {
 }
 
 function AppInner({ platformSubject }: AppProps) {
+  const trackerProject = useTrackerProject();
   const { t, locale } = useI18n();
   const iframeKeepAlivePool = useIframeKeepAlivePool();
   const clientType = useMemo(() => detectClientType(), []);
@@ -1503,6 +1505,7 @@ function AppInner({ platformSubject }: AppProps) {
     accountGeneration: projectDisplayAccountGeneration,
     context: workspaceContext,
     view: effectiveWorkspaceProjectView,
+    trackerProjectId: isPdlcMode() ? trackerProject || 'none' : undefined,
   });
   useStartupReady({
     visible: route.kind === 'home' && daemonAppConfigReady,
@@ -1556,6 +1559,8 @@ function AppInner({ platformSubject }: AppProps) {
     const pendingProjects = effectiveWorkspaceProjectView === 'team'
       ? []
       : projects.filter((project) =>
+          (!isPdlcMode() || (project.metadata?.trackerProjectId ?? '') === trackerProject)
+          &&
           pendingLocalProjectScopeRef.current === currentPendingLocalProjectScope
           && pendingLocalProjectIdsRef.current.has(project.id)
           && (
@@ -1678,6 +1683,7 @@ function AppInner({ platformSubject }: AppProps) {
         accountGeneration,
         context: issuedContext,
         view: effectiveView,
+        trackerProjectId: isPdlcMode() ? selectedTrackerProject() || 'none' : undefined,
       }),
       workspaceView: effectiveView,
     };
@@ -1696,6 +1702,7 @@ function AppInner({ platformSubject }: AppProps) {
   const reconcileFetchedProjects = useCallback((list: Project[], request: ProjectListRequest) => {
     if (
       request.accountGeneration !== currentWorkspaceAccountGeneration()
+      || (isPdlcMode() && request.displayKey !== projectDisplayKeyRef.current)
       || request.scopeKey !== projectListScopeKey(workspaceContextRef.current)
     ) {
       return false;
@@ -1801,11 +1808,13 @@ function AppInner({ platformSubject }: AppProps) {
       accountGeneration: request.accountGeneration,
       context: workspaceContextRef.current,
       view: request.workspaceView,
+      trackerProjectId: isPdlcMode() ? selectedTrackerProject() || 'none' : undefined,
     }, visibleList);
     setProjects((current) => {
       const preserved = current.filter(
         (project) =>
           pendingLocalProjectIds.has(project.id) &&
+          (!isPdlcMode() || (project.metadata?.trackerProjectId ?? '') === selectedTrackerProject()) &&
           !visibleFetchedIds.has(project.id) &&
           !activeDeletedProjectIds.has(project.id),
       );
@@ -2571,6 +2580,7 @@ function AppInner({ platformSubject }: AppProps) {
       accountGeneration: projectDisplayAccountGeneration,
       context: workspaceContext,
       view: effectiveWorkspaceProjectView,
+      trackerProjectId: isPdlcMode() ? trackerProject || 'none' : undefined,
     }, projects);
   }, [
     currentProjectDisplayKey,
@@ -2579,6 +2589,7 @@ function AppInner({ platformSubject }: AppProps) {
     projects,
     projectsLoading,
     workspaceContext,
+    trackerProject,
   ]);
 
   // Auto-pick the first available agent once both the daemon-stored config

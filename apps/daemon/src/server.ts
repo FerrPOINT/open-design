@@ -20,7 +20,7 @@ import type {
 } from '@open-design/sidecar-proto';
 import express from 'express';
 import { pdlcConfiguration } from './http/pdlc-config.js';
-import { pdlcAiHubProvider } from './integrations/pdlc-ai-hub.js';
+import { pdlcAiHubProvider, pdlcInferenceStatus } from './integrations/pdlc-ai-hub.js';
 import { currentPdlcAuthorization, installPdlcAuth, watchPdlcAuthorization } from './http/pdlc-auth.js';
 import { createPdlcToolAuthorization } from './http/pdlc-tool-authorization.js';
 import multer from 'multer';
@@ -3284,7 +3284,7 @@ export async function startServer({
   const pdlcAuth = pdlcConfig ? installPdlcAuth(app, pdlcConfig, undefined, (req) => {
     const parsed = parseProjectPreviewAssetPath(req.path.replace(/^\/api(?=\/)/, ''));
     return parsed ? projectPreviewScopes.authorization(parsed.projectId, parsed.scope) : null;
-  }, createPdlcToolAuthorization(toolTokenRegistry)) : null;
+  }, createPdlcToolAuthorization(toolTokenRegistry), () => pdlcInferenceStatus(pdlcInference)) : null;
   if (!pdlcConfig) {
     app.get('/api/pdlc/config', (_req, res) => res.json(null));
     app.get('/api/pdlc/bootstrap.js', (_req, res) => {
@@ -8770,6 +8770,7 @@ export async function startServer({
     host,
     getResolvedPort: () => resolvedPort,
     getDaemonShuttingDown: () => daemonShuttingDown,
+    inferenceStatus: pdlcConfig ? () => pdlcInferenceStatus(pdlcInference) : undefined,
     sandboxRuntime: SANDBOX_RUNTIME,
     env: process.env,
   });
@@ -9088,7 +9089,14 @@ export async function startServer({
   const agentDeps = {
     listProviderModels,
     testProviderConnection,
-    testAgentConnection,
+    testAgentConnection: async (input: Parameters<typeof testAgentConnection>[0]) => {
+      if (!pdlcConfig || input.agentId !== 'opencode') return testAgentConnection(input);
+      const started = performance.now();
+      const status = await pdlcInferenceStatus(pdlcInference);
+      return { ok: status.state === 'ready', kind: status.state === 'ready' ? 'success' as const : 'upstream_unavailable' as const,
+        latencyMs: Math.round(performance.now() - started), model: status.model ?? undefined,
+        detail: status.state === 'ready' ? 'AI Hub: доступ к модели проверен без генерации.' : `AI Hub: ${status.state}` };
+    },
     getAgentDef,
     isKnownModel,
     isKnownServiceTier,
@@ -11618,6 +11626,10 @@ export async function startServer({
     if (!def.bin)
       return failRun('AGENT_UNAVAILABLE', 'agent has no binary');
     const managedHubRun = def.id === 'opencode' && pdlcInference !== null;
+    if (pdlcConfig && def.id === 'opencode') {
+      const access = await pdlcInferenceStatus(pdlcInference);
+      if (access.state !== 'ready') return failRun('PDLC_HUB_UNAVAILABLE', `AI Hub: ${access.state}. Проверьте доступ к модели в настройках.`);
+    }
     const byokOpenCodeProvider = managedHubRun ? pdlcInference : def.id === 'byok-opencode'
       ? buildOpenCodeByokProviderConfig(
           byokProvider,
@@ -13443,6 +13455,13 @@ export async function startServer({
     // and finalizes the queued run, and the callback re-checks cancel/terminal
     // state in case it fires first.
     const scheduleRetryRestart = (delayMs, retryChatBody = chatBody) => {
+      // A new CLI has a new idempotency map. Never silently replay a managed paid turn.
+      if (managedHubRun) {
+        send('error', createSseErrorPayload('PDLC_HUB_OUTCOME_UNKNOWN',
+          'Автоматический повтор отключён. Предыдущий запрос мог выполниться в AI Hub; проверьте его перед новой попыткой.',
+          { retryable: false }));
+        return finishWithRetryDecision('failed', 1, null, { allowRetry: false });
+      }
       const termination = tearDownAttemptForRetry();
       const wait = Number.isFinite(delayMs) && delayMs > 0 ? delayMs : 0;
       const spawnWhenQuiescent = () => {
@@ -13543,6 +13562,12 @@ export async function startServer({
       signal = null,
       { allowRetry = true } = {},
     ) => {
+      allowRetry = allowRetry && !managedHubRun;
+      if (managedHubRun && status === 'failed') {
+        send('error', createSseErrorPayload('PDLC_HUB_OUTCOME_UNKNOWN',
+          'Запуск прерван без автоматического повтора. Предыдущий запрос мог выполниться в AI Hub; перед новой попыткой проверьте его статус.',
+          { retryable: false }));
+      }
       lifecycle.mark('finalize_start');
       // The Run records how the process ended; the strategy task records its
       // own verdict. A task blocked at any stage keeps a cleanly exited Run
@@ -16752,6 +16777,7 @@ export async function startServer({
       // class). Clearing the stale handle here lets the next turn start fresh +
       // re-seed the full transcript: one cold turn, never a broken conversation.
       if (
+        !managedHubRun &&
         !run.cancelRequested &&
         !forceInternalResume &&
         (runtimeResumesSessionById(def) || def.resumesSessionViaAcpLoad === true) &&

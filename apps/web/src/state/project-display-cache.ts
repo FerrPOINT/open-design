@@ -12,6 +12,7 @@ export interface ProjectDisplaySnapshotScope {
   accountGeneration: number;
   context: WorkspaceCollabContext | null;
   view: ProjectDisplayView | undefined;
+  trackerProjectId?: string;
 }
 
 export interface ProjectDisplaySnapshot {
@@ -49,6 +50,7 @@ export function projectDisplaySnapshotKey(scope: ProjectDisplaySnapshotScope): s
     scope.accountGeneration,
     workspaceIdentityCacheKey(scope.context),
     scope.context ? scope.view ?? 'recent' : 'local',
+    ...(scope.trackerProjectId === undefined ? [] : ['tracker', scope.trackerProjectId]),
   ].join(':');
 }
 

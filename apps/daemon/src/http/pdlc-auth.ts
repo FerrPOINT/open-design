@@ -225,6 +225,7 @@ export function installPdlcAuth(
   verify: PdlcVerifier = createPdlcVerifier(config),
   previewAuthorization: (req: Request) => PdlcPreviewAuthorization | null = () => null,
   toolAuthorization: (req: Request) => PdlcPreviewAuthorization | null = () => null,
+  inferenceStatus?: () => Promise<import('@open-design/contracts').PdlcInferenceStatus>,
 ): { dispose(): void } {
   const bindings = new Map<string, Binding>();
   const trackerOrigin = trackerProjectsOrigin(process.env.OD_PDLC_TRACKER_URL);
@@ -376,6 +377,8 @@ export function installPdlcAuth(
         route: typeof req.route?.path === 'string' ? req.route.path : '/:protected',
         status: res.statusCode, durationMs: Math.round(performance.now() - startedAt) })));
       res.locals.pdlc = value;
+      // Resolve the caller's current Tracker catalog only when assigning a binding.
+      res.locals.pdlcTrackerProjects = () => trackerProjects(trackerOrigin, binding?.token ?? token!, requestId);
       res.locals.pdlcPreview = {
         ...(delegated ?? { key: key ?? createHash('sha256').update(token!).digest('hex'), authorize }),
         initial: value,
@@ -388,6 +391,9 @@ export function installPdlcAuth(
       }
       if (req.path === '/api/pdlc/session' && req.method === 'GET') {
         return res.json({ identity: value.identity, expiresAt: value.expiresAt });
+      }
+      if (req.path === '/api/pdlc/inference/status' && req.method === 'GET') {
+        return res.json(inferenceStatus ? await inferenceStatus() : { state: 'not_configured', model: null });
       }
       if (req.path === '/api/pdlc/projects' && req.method === 'GET') {
         if (value.credential.kind !== 'browser' || !token) return fail(res, new PdlcAuthError(403, 'Browser credential required'));

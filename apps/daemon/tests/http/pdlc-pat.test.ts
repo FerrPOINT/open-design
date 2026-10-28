@@ -34,7 +34,8 @@ beforeEach(async () => {
   const config = { issuer, clientId: 'open-design', publicOrigin: 'https://studio.example',
     hostOrigin: null, catalogUrl: null, applicationKey: 'open-design' as const };
   const app = express();
-  ({ dispose } = installPdlcAuth(app, config));
+  ({ dispose } = installPdlcAuth(app, config, undefined, undefined, undefined,
+    async () => ({ state: 'model_unavailable', model: 'studio-main' })));
   app.get('/api/projects', (_req, res) => res.json({ credential: res.locals.pdlc.credential }));
   app.post('/api/projects', (_req, res) => res.json({ ok: true }));
   studio = app.listen(0, '127.0.0.1'); await once(studio, 'listening');
@@ -45,6 +46,12 @@ afterEach(async () => {
   for (const server of [studio, owner]) { server.closeAllConnections(); await new Promise<void>(r => server.close(() => r())); }
 });
 const headers = { Authorization: 'Bearer pdlc_pat_test' };
+it('protects model readiness and exposes only its public status to a read PAT', async () => {
+  expect((await fetch(origin + '/api/pdlc/inference/status')).status).toBe(401);
+  const result = await fetch(origin + '/api/pdlc/inference/status', { headers });
+  expect(result.status).toBe(200);
+  expect(await result.json()).toEqual({ state: 'model_unavailable', model: 'studio-main' });
+});
 it('admits read PATs without a fabricated browser SID and requires write scope for mutations', async () => {
   const response = await fetch(origin + '/api/projects', { headers });
   expect(response.status).toBe(200);

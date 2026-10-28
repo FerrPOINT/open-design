@@ -26,6 +26,8 @@ import { App } from '../App';
 import { confirmProductLeave, navigatePath, useRoute } from '../router';
 import { useI18n } from '../i18n';
 import { TrackerProjectPicker } from './TrackerProjectPicker';
+import { setTrackerProject } from './tracker-context';
+import { InferenceAccess } from './InferenceAccess';
 
 const boundaryKey = 'open-design:pdlc-session-boundary';
 const labels = createInstance();
@@ -107,6 +109,7 @@ function PlatformStudio({ config }: { config: PdlcConfiguration }) {
   const navigator = useMemo(platformRouter, []);
 
   const clearLocal = useCallback(() => {
+    setTrackerProject('');
     generation.current++;
     setAuthenticated(null);
     setPhase('login');
@@ -248,14 +251,18 @@ function PlatformStudio({ config }: { config: PdlcConfiguration }) {
             <DropdownMenuItem disabled={ending || (phase !== 'ready' && phase !== 'error')}
               onSelect={() => void logout()}>{locale === 'ru' ? 'Выйти' : 'Sign out'}</DropdownMenuItem>
           </DropdownMenuContent></DropdownMenu>} />
+        {phase === 'ready' && token ? <InferenceAccess key={authenticated?.identity.subject}>
         <div className="pdlc-studio-content">
-          {phase === 'ready' && token ? <RequireApplicationAccess application={config.applicationKey}><App platformSubject={authenticated?.identity.subject} /></RequireApplicationAccess>
-          : phase === 'login'
+          <RequireApplicationAccess application={config.applicationKey}><App platformSubject={authenticated?.identity.subject} /></RequireApplicationAccess>
+          {error && <p role="alert">{error}</p>}
+        </div></InferenceAccess> : <>
+        <div />
+        <div className="pdlc-studio-content">
+          {phase === 'login'
             ? <PlatformLogin pending={ending} error={error} onSignIn={login} />
             : phase === 'error' ? <ErrorState message={error ?? 'Не удалось проверить доступ.'}
               onRetry={() => { setPhase('loading'); setNonce((value) => value + 1); }} /> : <LoadingState />}
-          {phase === 'ready' && error && <p role="alert">{error}</p>}
-        </div>
+        </div></>}
       </div>
     </PlatformServicesProvider>
     </ApplicationAccessProvider>

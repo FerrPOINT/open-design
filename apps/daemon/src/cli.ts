@@ -9925,6 +9925,7 @@ async function runDaemonStatus(flags) {
   const data = await resp.json();
   if (flags.json) return process.stdout.write(JSON.stringify(data, null, 2) + '\n');
   console.log(`[daemon] ${data.bindHost}:${data.port} v${data.version} pid=${data.pid} plugins=${data.installedPlugins}`);
+  if (data.inference) console.log(`[AI Hub] ${data.inference.state}${data.inference.model ? ` · ${data.inference.model}` : ''}`);
 }
 
 async function runDaemonStop(flags) {

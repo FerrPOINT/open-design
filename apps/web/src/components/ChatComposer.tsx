@@ -1,4 +1,6 @@
 'use client';
+import { usePdlcInference } from '../pdlc/InferenceAccess';
+import { isPdlcMode } from '../pdlc/config';
 
 import {
   forwardRef,
@@ -597,7 +599,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
       activeProjectFileName = null,
       streaming,
       sessionMode = 'design',
-      sendDisabled = false,
+      sendDisabled: upstreamSendDisabled = false,
       inputDisabled = false,
       initialDraft,
       externalPendingUploads,
@@ -648,6 +650,9 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
     ref
   ) {
     const { locale, t } = useI18n();
+    const inference = usePdlcInference();
+    const inferenceBlocked = isPdlcMode() && inference?.state !== 'ready';
+    const sendDisabled = upstreamSendDisabled || inferenceBlocked;
     const analytics = useAnalytics();
     const { workspaceContext } = useProjectCollabContext();
     const activeFileContext =
@@ -1805,6 +1810,7 @@ export const ChatComposer = forwardRef<ChatComposerHandle, Props>(
       nextCommentAttachments: ChatCommentAttachment[],
       meta?: ChatSendMeta,
     ): boolean {
+      if (inferenceBlocked) return false;
       setStreamingAnnotationSendPending(false);
       if (!prompt && attachments.length === 0 && nextCommentAttachments.length === 0) return false;
       const nextAttachments =

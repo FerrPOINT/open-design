@@ -1,4 +1,5 @@
 import { withCommentFileDeletion, type CommentFileDeletion } from '../../collab/comment-file-deletion.js';
+import { matchesTrackerProject, validTrackerFilter, validateNewTrackerBinding, preserveTrackerBinding } from '../../http/pdlc-project-binding.js';
 import { injectMotionSourcePlayer, isMotionVideoComposition, markMotionHostedPreview, MOTION_PREVIEW_OUTPUT_HEADER } from '@open-design/contracts/runtime/motion-source-player';
 import { createHash, randomUUID } from 'node:crypto';
 import { trackedCommentFilePaths } from '../../collab/local-comment-files.js';
@@ -3397,6 +3398,8 @@ export function registerProjectRoutes(app: Express, ctx: RegisterProjectRoutesDe
 
   app.get('/api/projects', async (_req, res) => {
     try {
+      const trackerFilter = _req.query.trackerProjectId;
+      if (!validTrackerFilter(trackerFilter)) return sendApiError(res, 400, 'BAD_REQUEST', 'invalid Tracker project filter');
       const locations = await configuredProjectLocations();
       const latestRunStatuses = listLatestProjectRunStatuses(db);
       const awaitingInputProjects = listProjectsAwaitingInput(db);
@@ -3431,6 +3434,7 @@ export function registerProjectRoutes(app: Express, ctx: RegisterProjectRoutesDe
       /** @type {import('@open-design/contracts').ProjectsResponse} */
       const body = {
         projects: listUnboundProjects(db)
+          .filter((project) => matchesTrackerProject(project.metadata, trackerFilter))
           .filter((project: any) => projectVisibleForLocations(project, locations))
           .map((project: any) => ({
             ...project,
@@ -3966,6 +3970,7 @@ export function registerProjectRoutes(app: Express, ctx: RegisterProjectRoutesDe
         return sendApiError(res, 400, 'BAD_REQUEST', 'invalid project id');
       }
       const requestedConversationId = req.body?.conversationId;
+      if (!await validateNewTrackerBinding(res, metadata?.trackerProjectId)) return;
       if (
         requestedConversationId !== undefined
         && (typeof requestedConversationId !== 'string' || !isSafeId(requestedConversationId))
@@ -5184,6 +5189,7 @@ export function registerProjectRoutes(app: Express, ctx: RegisterProjectRoutesDe
     try {
       const patch = req.body || {};
       let patchProject = getProject(db, req.params.id);
+      if (!preserveTrackerBinding(res, patchProject?.metadata, patch)) return;
       if (
         !patchProject
         && typeof patch.name === 'string'

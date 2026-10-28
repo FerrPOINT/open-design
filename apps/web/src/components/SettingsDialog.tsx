@@ -4502,11 +4502,11 @@ export function SettingsDialog({
                   onClick={() => setMode('daemon')}
                   title={
                     daemonLive
-                      ? t('settings.modeDaemonHelp')
+                      ? isPdlcMode() ? (locale === 'ru' ? 'CLI выполняется на сервере OpenDesign' : 'CLI runs on the OpenDesign server') : t('settings.modeDaemonHelp')
                       : t('settings.modeDaemonOffline')
                   }
                 >
-                  <span className="seg-title">{t('settings.localCli')}</span>
+                  <span className="seg-title">{isPdlcMode() ? (locale === 'ru' ? 'CLI сервера' : 'Server CLI') : t('settings.localCli')}</span>
                   <span className="seg-meta">
                     {daemonLive
                       ? t('settings.modeDaemonInstalledMeta', { count: installedCount })
@@ -4621,7 +4621,7 @@ export function SettingsDialog({
             <section className="settings-section">
               <div className="section-head">
                 <div>
-                  <p className="hint">{t('settings.codeAgentHint')}</p>
+                  <p className="hint">{isPdlcMode() ? (locale === 'ru' ? 'CLI установлен на сервере. Модель OpenCode управляется AI Hub; проверка доступа не запускает генерацию.' : 'The CLI is installed on the server. AI Hub manages the OpenCode model; the access check does not generate content.') : t('settings.codeAgentHint')}</p>
                 </div>
               </div>
               {initialAgentScanRunning ? (

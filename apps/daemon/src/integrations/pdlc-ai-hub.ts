@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
+import type { PdlcInferenceStatus } from '@open-design/contracts';
 import { pdlcAuthOrigin } from '../http/pdlc-config.js';
 import { buildOpenCodeByokProviderConfig } from '../runtimes/byok-opencode.js';
 
@@ -40,5 +41,24 @@ export function pdlcAiHubProvider(dataDir: string, pdlcMode: boolean) {
   }
   provider.env.OPENCODE_DISABLE_MODELS_FETCH = 'true';
   provider.env.OPENCODE_DISABLE_AUTOUPDATE = 'true';
-  return provider;
+  return { ...provider, hubOrigin: origin, hubModel: model };
+}
+
+export async function pdlcInferenceStatus(
+  provider: ReturnType<typeof pdlcAiHubProvider>,
+  request: typeof fetch = fetch,
+): Promise<PdlcInferenceStatus> {
+  if (!provider) return { state: 'not_configured', model: null };
+  const model = provider.hubModel;
+  try {
+    const response = await request(`${provider.hubOrigin}/v1/models`, {
+      headers: { Authorization: `Bearer ${provider.env.OPEN_DESIGN_BYOK_API_KEY}` },
+      redirect: 'error', signal: AbortSignal.timeout(5000),
+    });
+    if (response.status === 401 || response.status === 403) return { state: 'access_denied', model };
+    if (!response.ok) return { state: 'hub_unavailable', model };
+    const body = await response.json() as { data?: Array<{ id?: string }> };
+    if (!Array.isArray(body.data)) return { state: 'hub_unavailable', model };
+    return { state: body.data.some(item => item?.id === model) ? 'ready' : 'model_unavailable', model };
+  } catch { return { state: 'hub_unavailable', model }; }
 }

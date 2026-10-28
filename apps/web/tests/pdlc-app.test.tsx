@@ -41,6 +41,8 @@ describe('PDLC studio entry', () => {
     vi.mocked(endSso).mockReset();
     fetcher = vi.fn<typeof fetch>(async (input) => {
       const url = String(input);
+      if (url === '/api/pdlc/inference/status') return new Response('{"state":"ready","model":"studio-main"}');
+      if (url === '/api/pdlc/projects') return new Response('{"projects":[]}');
       if (url === '/api/pdlc/session') return new Response(JSON.stringify({
         identity: { subject: profileSubject, email: 'alice@example.test', displayName: 'Алиса' },
         expiresAt: Date.now() + 120_000,

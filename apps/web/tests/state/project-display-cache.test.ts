@@ -18,6 +18,17 @@ import {
 } from '../../src/state/project-display-cache';
 import type { Project } from '../../src/types';
 
+it('isolates Tracker classifications without changing legacy local cache keys', () => {
+  const local = { accountGeneration: 1, context: null, view: undefined };
+  const first = { ...local, trackerProjectId: 'tracker-one' };
+  const second = { ...local, trackerProjectId: 'tracker-two' };
+  writeProjectDisplaySnapshot(first, []);
+  expect(projectDisplaySnapshotKey(first)).not.toBe(projectDisplaySnapshotKey(second));
+  expect(projectDisplaySnapshotKey(local)).not.toContain('tracker');
+  expect(readProjectDisplaySnapshot(projectDisplaySnapshotKey(second))).toBeNull();
+  expect(readProjectDisplaySnapshot(projectDisplaySnapshotKey(local))).toBeNull();
+});
+
 function context(
   memberId: string,
   role: CollabMemberRole = 'member',
