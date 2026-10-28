@@ -1,6 +1,12 @@
 ARG NODE_IMAGE=docker.io/library/node:24-alpine
 ARG RUNTIME_IMAGE=docker.io/library/node:24-alpine
 
+FROM ${NODE_IMAGE} AS agent-runtime
+COPY deploy/install-opencode.mjs /tmp/install-opencode.mjs
+RUN node /tmp/install-opencode.mjs && \
+    mkdir /opencode && tar -xzf /tmp/opencode.tgz -C /opencode --strip-components=2 package/bin/opencode && \
+    chmod 755 /opencode/opencode && /opencode/opencode --version
+
 FROM ${NODE_IMAGE} AS build
 
 ARG HTTP_PROXY
@@ -135,5 +141,6 @@ ENV OD_PORT=7456
 EXPOSE 7456
 
 USER open-design
+COPY --from=agent-runtime /opencode/opencode /usr/local/bin/opencode
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["node", "apps/daemon/dist/cli.js", "--no-open"]

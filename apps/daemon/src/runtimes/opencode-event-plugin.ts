@@ -4,10 +4,61 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 // Generated runtime module, carried in the daemon bundle so packaged users do
-// not need another CLI or an npm plugin install. No imports or provider hooks.
+// not need an npm plugin install. The provider hook is active only for managed Hub runs.
 export const OPEN_CODE_EVENT_PLUGIN_SOURCE = String.raw`export default async function () {
   const seen = new Map();
-  return { event: async (payload) => {
+  return {
+    config: async (config) => {
+      const id = process.env?.OD_PDLC_AI_HUB_PROVIDER;
+      if (!id) return;
+      const options = config.provider?.[id]?.options;
+      if (!options?.baseURL) throw new Error('AI Hub provider configuration is missing');
+      const endpoint = new URL(options.baseURL.replace(/\/$/, '') + '/chat/completions').href;
+      const pending = new Map();
+      // OpenCode can retry both in the SDK and around a failed stream. Keep the
+      // UUID for the exact wire request until a complete response is consumed.
+      // A tool step changes the body; a new CLI invocation has its own map.
+      options.fetch = async (input, init) => {
+        const request = new Request(input, init);
+        if (request.url !== endpoint || request.method !== 'POST') throw new Error('AI Hub destination refused');
+        const body = await request.clone().text();
+        const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(body))), b => b.toString(16).padStart(2, '0')).join('');
+        let key = pending.get(digest);
+        if (!key) {
+          if (pending.size >= 256) throw new Error('AI Hub unresolved request limit reached');
+          key = crypto.randomUUID();
+          pending.set(digest, key);
+        }
+        const headers = new Headers(request.headers);
+        headers.set('Idempotency-Key', key);
+        const response = await fetch(new Request(request, { headers, redirect: 'error' }));
+        if (!response.ok || !response.body) return response;
+        const sse = response.headers.get('content-type')?.includes('text/event-stream');
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let tail = '';
+        let completed = false;
+        const stream = new ReadableStream({
+          async pull(controller) {
+            try {
+              const result = await reader.read();
+              if (result.done) {
+                if (!sse || completed) pending.delete(digest);
+                controller.close();
+                return;
+              }
+              tail += decoder.decode(result.value, { stream: true });
+              if (/(?:^|\r?\n)data:\s*\[DONE\]\s*(?:\r?\n|$)/.test(tail)) completed = true;
+              tail = tail.slice(-128);
+              controller.enqueue(result.value);
+            } catch (error) { controller.error(error); }
+          },
+          cancel(reason) { return reader.cancel(reason); },
+        });
+        return new Response(stream, { status: response.status, statusText: response.statusText, headers: response.headers });
+      };
+    },
+    event: async (payload) => {
     try {
       const event = payload?.event;
       if (event?.type !== 'message.part.updated') return;

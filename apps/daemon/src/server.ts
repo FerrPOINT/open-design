@@ -17,6 +17,7 @@ import type {
 } from '@open-design/sidecar-proto';
 import express from 'express';
 import { pdlcConfiguration } from './http/pdlc-config.js';
+import { pdlcAiHubProvider } from './integrations/pdlc-ai-hub.js';
 import { currentPdlcAuthorization, installPdlcAuth, watchPdlcAuthorization } from './http/pdlc-auth.js';
 import { createPdlcToolAuthorization } from './http/pdlc-tool-authorization.js';
 import multer from 'multer';
@@ -3166,6 +3167,7 @@ export async function startServer({
   let resolvedPort = port;
   let daemonShuttingDown = false;
   const pdlcConfig = pdlcConfiguration();
+  const pdlcInference = pdlcAiHubProvider();
   const extraAllowedOrigins = configuredAllowedOrigins();
   const workspaceAuthorityCacheMode = resolveWorkspaceAuthorityCacheMode(
     process.env.OD_WORKSPACE_AUTHORITY_CACHE_MODE,
@@ -11181,7 +11183,8 @@ export async function startServer({
       );
     if (!def.bin)
       return failRun('AGENT_UNAVAILABLE', 'agent has no binary');
-    const byokOpenCodeProvider = def.id === 'byok-opencode'
+    const managedHubRun = def.id === 'opencode' && pdlcInference !== null;
+    const byokOpenCodeProvider = managedHubRun ? pdlcInference : def.id === 'byok-opencode'
       ? buildOpenCodeByokProviderConfig(
           byokProvider,
           typeof model === 'string' ? model : null,
@@ -11193,7 +11196,7 @@ export async function startServer({
         BYOK_OPENCODE_PROVIDER_REQUIRED_MESSAGE,
       );
     }
-    const requestedRuntimeModel = def.id === 'byok-opencode'
+    const requestedRuntimeModel = managedHubRun || def.id === 'byok-opencode'
       ? byokOpenCodeProvider?.modelId ?? null
       : model;
     // Validate the checked-in runtime timeout hints immediately
@@ -14560,8 +14563,12 @@ export async function startServer({
           if (!versions?.agentCliVersion) {
             console.info('[opencode] optional tool previews disabled: CLI version unavailable; later launches retry detection after the short cache expires');
           }
-          await applyOpenCodeEventPlugin(env, RUNTIME_DATA_DIR, versions?.agentCliVersion, agentSpawnEnv.OPENCODE_CONFIG_CONTENT);
+          const applied = await applyOpenCodeEventPlugin(env, RUNTIME_DATA_DIR, versions?.agentCliVersion, agentSpawnEnv.OPENCODE_CONFIG_CONTENT);
+          if (managedHubRun && !applied) throw new Error('AI Hub transport plugin is unavailable');
         } catch (error) {
+          // The Hub hook owns idempotency and credential destination checks;
+          // unlike optional preview events, it is required before any model I/O.
+          if (managedHubRun) throw new Error('AI Hub transport plugin could not be loaded');
           console.warn('[opencode] optional tool previews unavailable:', error instanceof Error ? error.message : String(error));
         }
       }
