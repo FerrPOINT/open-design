@@ -16,6 +16,8 @@ import {
   useState,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { usePdlcInference } from '../pdlc/InferenceAccess';
+import { isPdlcMode } from '../pdlc/config';
 import type {
   CSSProperties,
   DragEvent as ReactDragEvent,
@@ -406,7 +408,7 @@ export const HomeHero = forwardRef<HomeHeroHandle, Props>(function HomeHero(
     pendingPluginId,
     pendingChipId,
     typeSelectionPending = false,
-    submitDisabled = false,
+    submitDisabled: upstreamSubmitDisabled = false,
     submitting = false,
     onPickPlugin,
     onPickExamplePlugin = () => undefined,
@@ -434,6 +436,8 @@ export const HomeHero = forwardRef<HomeHeroHandle, Props>(function HomeHero(
   ref,
 ) {
   const { locale, t } = useI18n();
+  const inference = usePdlcInference();
+  const submitDisabled = upstreamSubmitDisabled || (isPdlcMode() && inference?.state !== 'ready');
   const analytics = useAnalytics();
   // Docked = the composer without Home's page around it. Read in the render
   // below to drop the furniture (headline, type row, example grid) rather than
