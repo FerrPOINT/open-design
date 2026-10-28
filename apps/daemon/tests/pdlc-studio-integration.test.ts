@@ -5,6 +5,7 @@ import { chmod, readFile, writeFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { expect, test } from 'vitest';
 import { startServer } from '../src/server.js';
+import type { ProjectResponse, ProjectsResponse, ChatRunCreateResponse, ChatRunStatusResponse } from '@open-design/contracts';
 
 test('PDLC keeps Tracker bindings durable and never respawns a failed managed CLI', async () => {
   const originalEnv = { ...process.env };
@@ -47,36 +48,37 @@ process.stderr.write('Error: connection reset by peer');process.exit(1);`);
     started = await startServer({ port: 0, returnServer: true });
     const url = (started as any).url;
     const headers = { Authorization: 'Bearer pdlc_pat_fixture', 'Content-Type': 'application/json' };
-    const call = async (route: string, body?: unknown, method = body === undefined ? 'GET' : 'POST') => {
-      const response = await fetch(url + route, { headers, method, body: body === undefined ? undefined : JSON.stringify(body) });
-      const value = await response.json();
+    const call = async <T = unknown>(route: string, body?: unknown, method = body === undefined ? 'GET' : 'POST'): Promise<T> => {
+      const response = await fetch(url + route, { headers, method, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+      const value = await response.json() as T;
       expect(response.ok, JSON.stringify(value)).toBe(true);
       return value;
     };
     await call('/api/app-config', { agentId: 'opencode', agentCliEnv: { opencode: { OPENCODE_BIN: bin } } }, 'PUT');
-    const works = [];
-    for (const binding of [...ids, undefined]) works.push(await call('/api/projects', {
+    const works: Array<ProjectResponse & { conversationId: string }> = [];
+    for (const binding of [...ids, undefined]) works.push(await call<ProjectResponse & { conversationId: string }>('/api/projects', {
       id: randomUUID(), name: 'Bound work', skipDiscoveryBrief: true,
       metadata: { kind: 'prototype', ...(binding ? { trackerProjectId: binding } : {}) },
     }));
     for (let i = 0; i < ids.length; i++) {
-      const list = await call(`/api/projects?trackerProjectId=${ids[i]}`);
-      expect(list.projects.map((p: any) => p.id)).toContain(works[i].project.id);
-      expect(list.projects.map((p: any) => p.id)).not.toContain(works[1 - i].project.id);
+      const list = await call<ProjectsResponse>(`/api/projects?trackerProjectId=${ids[i]}`);
+      expect(list.projects.map(p => p.id)).toContain(works[i]!.project.id);
+      expect(list.projects.map(p => p.id)).not.toContain(works[1 - i]!.project.id);
     }
-    expect((await call('/api/projects?trackerProjectId=none')).projects.map((p: any) => p.id)).toContain(works[2].project.id);
-    await call(`/api/projects/${works[0].project.id}`, { metadata: { kind: 'prototype', fidelity: 'wireframe' } }, 'PATCH');
-    expect((await call(`/api/projects/${works[0].project.id}`)).project.metadata.trackerProjectId).toBe(ids[0]);
-    const duplicate = await call(`/api/projects/${works[0].project.id}/duplicate`, {});
-    expect(duplicate.project.metadata.trackerProjectId).toBe(ids[0]);
-    const created = await call('/api/runs', { projectId: works[0].project.id, conversationId: works[0].conversationId,
+    expect((await call<ProjectsResponse>('/api/projects?trackerProjectId=none')).projects.map(p => p.id)).toContain(works[2]!.project.id);
+    await call(`/api/projects/${works[0]!.project.id}`, { metadata: { kind: 'prototype', fidelity: 'wireframe' } }, 'PATCH');
+    expect((await call<ProjectResponse>(`/api/projects/${works[0]!.project.id}`)).project.metadata?.trackerProjectId).toBe(ids[0]);
+    const duplicate = await call<ProjectResponse>(`/api/projects/${works[0]!.project.id}/duplicate`, {});
+    expect(duplicate.project.metadata?.trackerProjectId).toBe(ids[0]);
+    const created = await call<ChatRunCreateResponse>('/api/runs', { projectId: works[0]!.project.id, conversationId: works[0]!.conversationId,
       agentId: 'opencode', message: 'Create a page', currentPrompt: 'Create a page', assistantMessageId: randomUUID(), clientRequestId: randomUUID() });
     const events = await fetch(`${url}/api/runs/${created.runId}/events`, { headers });
     await events.text();
-    const run = await call(`/api/runs/${created.runId}`);
+    const run = await call<ChatRunStatusResponse>(`/api/runs/${created.runId}`);
     expect(run.status).toBe('failed');
     expect((await readFile(counter, 'utf8')).trim().split('\n')).toHaveLength(1);
     expect(modelRequests).toBe(0);
+    if (!run.eventsLogPath) throw new Error('Run events log is missing');
     const rawEvents = await readFile(run.eventsLogPath, 'utf8');
     expect(rawEvents).not.toContain('run_retry_attempted');
     expect(rawEvents).toContain('PDLC_HUB_OUTCOME_UNKNOWN');
