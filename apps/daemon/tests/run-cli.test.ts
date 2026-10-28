@@ -330,7 +330,7 @@ describe('od run CLI', () => {
 
     expect(result.code).toBe(exitCode);
     expect(result.stdout).toBe('');
-    if (status === 400) expect(result.stderr).toContain('POST /api/runs failed: 400');
+    expect(JSON.parse(result.stderr)).toMatchObject({ error: { code, message: 'Provider rejected [REDACTED]' } });
     expect(result.stderr).toContain(code);
     expect(result.stderr).toContain('Provider rejected [REDACTED]');
     expect(result.stderr).not.toContain(apiKey);

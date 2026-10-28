@@ -8625,7 +8625,11 @@ Common options:
             data:    data.error.data,
           }, byokProvider?.apiKey);
         }
-        return exitWithStructuredError({ code: 'CLI_REQUEST_FAILED', message: `Run request failed (HTTP ${resp.status}).` }, byokProvider?.apiKey);
+        return exitWithStructuredError({
+          code: typeof data?.error?.code === 'string' ? data.error.code : 'CLI_REQUEST_FAILED',
+          message: typeof data?.error?.message === 'string' ? data.error.message : `Run request failed (HTTP ${resp.status}).`,
+          data: structuredErrorData(data?.error),
+        }, byokProvider?.apiKey);
       }
       if (flags.json && !flags.follow) {
         return process.stdout.write(serializeRunCliJson(data, byokProvider?.apiKey, 2) + '\n');
