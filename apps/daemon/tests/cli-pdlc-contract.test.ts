@@ -10,7 +10,7 @@ import { expect, it } from 'vitest';
 const tracker = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
 async function cli(args: string[], input = '', status = 200) {
-  const requests: Array<{ method: string; url: string; body: unknown; authorization?: string }> = [];
+  const requests: Array<{ method: string; url: string; body: unknown; authorization: string | undefined }> = [];
   const server = createServer(async (req, res) => {
     let raw = '';
     for await (const chunk of req) raw += chunk;
@@ -21,7 +21,7 @@ async function cli(args: string[], input = '', status = 200) {
       : req.method === 'POST' ? { project: JSON.parse(raw) } : { projects: [] }));
   });
   server.listen(0, '127.0.0.1'); await once(server, 'listening');
-  const env = { ...process.env, PDLC_API_TOKEN: 'pdlc_pat_contract' }; delete env.OD_TOOL_TOKEN;
+  const env: NodeJS.ProcessEnv = { ...process.env, PDLC_API_TOKEN: 'pdlc_pat_contract' }; delete env.OD_TOOL_TOKEN;
   const child = spawn(process.execPath, ['--import', 'tsx', fileURLToPath(new URL('../src/cli.ts', import.meta.url)),
     ...args, '--json', '--daemon-url', `http://127.0.0.1:${(server.address() as { port: number }).port}`], { env });
   let stdout = '', stderr = '';
