@@ -157,6 +157,7 @@ login или credential store. Не записывать значение ток
 
 ```sh
 corepack pnpm exec od status --json --daemon-url http://127.0.0.3:8193
+corepack pnpm exec od tracker projects --json --daemon-url http://127.0.0.3:8193
 corepack pnpm exec od project list --json --daemon-url http://127.0.0.3:8193
 corepack pnpm exec od project list --tracker-project none --json --daemon-url http://127.0.0.3:8193
 ```
@@ -175,6 +176,58 @@ corepack pnpm exec od project list --tracker-project none --json --daemon-url ht
 привязки через metadata. Без него новая работа остаётся «Без проекта».
 При назначении нужен также текущий доступ к проекту и право чтения Tracker;
 токен другого сервиса не подставляется. Фильтр не создаёт ACL.
+
+`od tracker projects` возвращает UUID, ключ и название из настоящего каталога
+Tracker через `GET /api/pdlc/projects`. Принимаются браузерная сессия или личный
+PAT с правом чтения OpenDesign; Tracker отдельно проверяет этот же credential.
+Пустой каталог допустим: работы можно создавать в разделе «Без проекта».
+UUID Tracker используется только для классификации; `projectId` в командах
+файлов, бесед и запусков — ID **работы OpenDesign** из `od project list`.
+
+После задания `OD_DAEMON_URL` и `PDLC_API_TOKEN` в окружении доступен весь цикл
+работы с существующим HTML или исходниками React. Ниже `WORK_ID`, `CONVERSATION_ID`
+и `RUN_ID` заменяют ID из ответов предыдущих команд; файл `metadata.json`
+содержит объект metadata с необязательным `trackerProjectId`:
+
+```sh
+corepack pnpm exec od project create --name "Новая работа" --metadata-json metadata.json --json
+corepack pnpm exec od files list WORK_ID --json
+corepack pnpm exec od files read WORK_ID index.html
+corepack pnpm exec od files write WORK_ID index.html --json < updated.html
+corepack pnpm exec od files rename WORK_ID draft.html ready.html --json
+corepack pnpm exec od conversation new WORK_ID --title "Доработка" --json
+corepack pnpm exec od conversation info CONVERSATION_ID --json
+corepack pnpm exec od conversation messages CONVERSATION_ID --json
+corepack pnpm exec od conversation rename CONVERSATION_ID --title "Новый заголовок" --json
+corepack pnpm exec od run start --project WORK_ID --conversation CONVERSATION_ID --prompt-file prompt.txt --json
+corepack pnpm exec od run watch RUN_ID
+corepack pnpm exec od run info RUN_ID --json
+corepack pnpm exec od run result-package RUN_ID --json
+corepack pnpm exec od files versions WORK_ID index.html --json
+```
+
+Пример использует shell с перенаправлением stdin. В PowerShell содержимое файла
+можно передать через `Get-Content -Raw -Encoding utf8 updated.html | corepack pnpm exec od files write WORK_ID index.html --json`;
+переданный текст включает завершающий перевод строки pipeline. Для передачи
+локального файла побайтово использовать `files upload WORK_ID updated.html --as index.html`.
+
+История возвращает штатный `{messages}` без изменения сохранённых сообщений.
+`GET /api/conversations/:id` возвращает `{conversation}` после проверки доступа
+к родительской работе; служебные беседы комментариев скрыты. CLI использует этот
+маршрут для разрешения родителя без перебора каталога, затем вызывает существующие
+API бесед. Все запросы сохраняют явный Workspace-контекст, если он был задан.
+
+Новое задание ИИ запускается через `run start` с тем же `--conversation`.
+`run cancel RUN_ID` останавливает запуск; `conversation delete CONVERSATION_ID`
+удаляет беседу и штатно останавливает её активные запуски. Прямые изменения
+исходников выполняются через `files write/upload`, переименование — через
+существующий API файлов с его проверками конфликтов и путей. Версии HTML
+читаются и восстанавливаются существующими `files version-*`.
+
+Серверный OpenCode не поддерживает `run steer` во время выполнения:
+команда возвращает `RUN_STEERING_UNSUPPORTED`. `run continue` разрешён только
+для действительно resumable-запусков. Эти отказы не перезапускают генерацию.
+Чтение и изменение исходников не требуют Chromium или отдельного рендера.
 
 Для CLI create существующий `--metadata-json <файл|->` принимает JSON-объект,
 например `{"kind":"prototype","trackerProjectId":"<Tracker-UUID>"}`.

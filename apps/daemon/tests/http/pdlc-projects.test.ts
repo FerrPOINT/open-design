@@ -32,7 +32,7 @@ it('preserves empty catalogs and rejects owner denial, malformed replies and out
   await expect(trackerProjects('https://tracker.example','token','r')).rejects.toMatchObject({status:503,message:'Task Tracker projects unavailable'});
 });
 
-it('keeps the project proxy behind the real studio gate and forwards a browser binding to Tracker', async () => {
+it('keeps the project proxy behind the studio gate and forwards each browser or PAT credential to Tracker', async () => {
   const tracker = express(); const received: string[] = [];
   tracker.get('/api/v1/projects', (req,res) => {
     received.push(req.get('authorization') ?? '');
@@ -54,13 +54,15 @@ it('keeps the project proxy behind the real studio gate and forwards a browser b
   const origin = `http://127.0.0.1:${(studio.address() as {port:number}).port}`;
   try {
     expect((await fetch(origin+'/api/pdlc/projects')).status).toBe(401); expect(received).toEqual([]);
-    expect((await fetch(origin+'/api/pdlc/projects',{headers:{Authorization:'Bearer pat'}})).status).toBe(403);
-    expect(received).toEqual([]);
+    const pat = await fetch(origin+'/api/pdlc/projects',{headers:{Authorization:'Bearer pat'}});
+    expect(pat.status).toBe(200);
+    expect(await pat.json()).toEqual({projects:[{id:'tracker-project',key:'BASE',name:'Platform'}]});
+    expect(received).toEqual(['Bearer pat']);
     const session = await fetch(origin+'/api/pdlc/session',{method:'POST',headers:{Origin:'https://design.example',Authorization:'Bearer browser'}});
     const result = await fetch(origin+'/api/pdlc/projects',{headers:{Cookie:session.headers.get('set-cookie')!.split(';')[0]!}});
     expect(result.status).toBe(200);
     expect(await result.json()).toEqual({projects:[{id:'tracker-project',key:'BASE',name:'Platform'}]});
-    expect(received).toEqual(['Bearer browser']);
+    expect(received).toEqual(['Bearer pat','Bearer browser']);
   } finally {
     boundary.dispose(); studio.closeAllConnections(); peer.closeAllConnections();
     await Promise.all([new Promise<void>(resolve=>studio.close(()=>resolve())),new Promise<void>(resolve=>peer.close(()=>resolve()))]);

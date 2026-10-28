@@ -396,7 +396,7 @@ export function installPdlcAuth(
         return res.json(inferenceStatus ? await inferenceStatus() : { state: 'not_configured', model: null });
       }
       if (req.path === '/api/pdlc/projects' && req.method === 'GET') {
-        if (value.credential.kind !== 'browser' || !token) return fail(res, new PdlcAuthError(403, 'Browser credential required'));
+        if (!token) return fail(res, new PdlcAuthError(401, 'Требуется вход PDLC.'));
         try { return res.json(await trackerProjects(trackerOrigin, binding?.token ?? token, requestId)); }
         catch (error) {
           return res.status(error instanceof TrackerProjectsError ? error.status : 503).json({ error: {

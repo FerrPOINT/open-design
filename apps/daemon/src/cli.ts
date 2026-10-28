@@ -421,6 +421,7 @@ const SUBCOMMAND_MAP = {
   brand: runBrand,
   brands: runBrand,
   project: runProject,
+  tracker: runTracker,
   strategy: runStrategy,
   workspace: runWorkspace,
   automation: runAutomation,
@@ -1176,6 +1177,9 @@ function printRootHelp() {
   console.log(`Usage:
   od [--port <n>] [--host <addr>] [--no-open]
       Start the local daemon and open the web UI.
+
+  od tracker projects [--json]
+      List Task Tracker projects (classification UUIDs, not OpenDesign work IDs).
 
   od tools live-artifacts <create|list|update|refresh> [options]
       Manage live artifacts through daemon wrapper commands.
@@ -7486,6 +7490,9 @@ async function runProject(args) {
                     [--thumbnail] [--json]
                     Write a snapshot's exact historical bytes to a local file.
 
+IDs above identify OpenDesign works. --tracker-project takes a Task Tracker
+classification UUID (or none); discover UUIDs with od tracker projects.
+
 Common options:
   --daemon-url <url>   OpenDesign daemon HTTP base.
   --workspace <id>     Exact Workspace for bound project requests.
@@ -8847,6 +8854,27 @@ function parseProjectFileVersionSourceFlag(raw) {
   process.exit(2);
 }
 
+async function runTracker(args) {
+  if (args[0] === 'help' || args.includes('--help') || args.includes('-h')) {
+    console.log(`Usage: od tracker projects [--json] [--daemon-url <url>]
+List accessible Task Tracker projects: UUID, key and name.
+Use these UUIDs in metadata.trackerProjectId or project list --tracker-project.
+OpenDesign project/file/run commands instead take an OpenDesign work ID.
+Authentication: PDLC_API_TOKEN (requires OpenDesign read and Tracker access).`);
+    return;
+  }
+  if (args[0] !== 'projects') {
+    return exitWithStructuredError({ code: 'CLI_USAGE', message: 'Usage: od tracker projects [--json] [--daemon-url <url>]' });
+  }
+  const flags = parseFlags(args.slice(1), { string: new Set(['daemon-url']), boolean: new Set(['json']) });
+  const base = (await projectDaemonUrl(flags)).replace(/\/$/, '');
+  const response = await fetch(`${base}/api/pdlc/projects`);
+  if (!response.ok) return structuredHttpFailure(response);
+  const data = await response.json();
+  if (flags.json) return process.stdout.write(JSON.stringify(data, null, 2) + '\n');
+  for (const project of data.projects ?? []) console.log(`${project.id}\t${project.key}\t${project.name}`);
+}
+
 async function runFiles(args) {
   if (args.length === 0 || args[0] === 'help' || args.includes('--help') || args.includes('-h')) {
     console.log(`Usage:
@@ -8857,6 +8885,8 @@ async function runFiles(args) {
   od files upload <projectId> <localpath> [--as <relpath>]
                                                Upload a local file.
   od files delete <projectId> <name> [--json]  Delete a project file.
+  od files rename <projectId> <from> <to> [--json]
+                                               Rename a project file.
   od files diff   <projectId> <relpathA> [<relpathB> | --against -]
                                                Print a unified diff.
   od files prepare-comments <projectId> <relpath> --prompt-file <source-path|->
@@ -8868,6 +8898,8 @@ async function runFiles(args) {
                                                Save the current HTML as a version.
   od files version-restore <projectId> <relpath> <versionId>
                                                Restore a saved HTML as a new current version.
+
+projectId is an OpenDesign work ID from od project list, not a Tracker UUID.
 
 Common options:
   --daemon-url <url>   OpenDesign daemon HTTP base.
@@ -8890,6 +8922,21 @@ Common options:
   const workspaceHeaders =
     workspaceHeadersFromExplicitFlags(flags) ?? {};
   switch (sub) {
+    case 'rename': {
+      const [id, from, to] = positionalArgs(rest, PROJECT_RESOURCE_STRING_FLAGS);
+      if (!id || !from || !to) {
+        return exitWithStructuredError({ code: 'CLI_USAGE', message: 'Usage: od files rename <projectId> <from> <to> [--json]' });
+      }
+      const response = await fetch(`${base}/api/projects/${encodeURIComponent(id)}/files/rename`, {
+        method: 'POST', headers: { 'content-type': 'application/json', ...workspaceHeaders },
+        body: JSON.stringify({ from, to }),
+      });
+      if (!response.ok) return structuredHttpFailure(response);
+      const data = await response.json();
+      if (flags.json) return process.stdout.write(JSON.stringify(data, null, 2) + '\n');
+      console.log(`[files] renamed ${from} → ${to}`);
+      return;
+    }
     case 'list': {
       const id = positionalArgs(rest, PROJECT_RESOURCE_STRING_FLAGS)[0];
       if (!id) {
@@ -9451,6 +9498,12 @@ async function runConversation(args) {
                                            source message.
   od conversation list <projectId>           List conversations in a project.
   od conversation info <conversationId>      Print one conversation.
+  od conversation messages <conversationId> [--json]
+                                           Read the conversation history.
+  od conversation rename <conversationId> --title "<title>" [--json]
+  od conversation delete <conversationId> [--json]
+
+projectId is an OpenDesign work ID, not a Task Tracker UUID.
 
 Common options:
   --daemon-url <url>         OpenDesign daemon HTTP base.
@@ -9461,19 +9514,13 @@ Common options:
   }
   const sub = args[0];
   const rest = args.slice(1);
-  const conversationStringFlags =
-    sub === 'new' || sub === 'list'
-      ? PROJECT_RESOURCE_STRING_FLAGS
-      : PROJECT_STRING_FLAGS;
+  const conversationStringFlags = PROJECT_RESOURCE_STRING_FLAGS;
   const flags = parseFlags(rest, {
     string: conversationStringFlags,
     boolean: PROJECT_BOOLEAN_FLAGS,
   });
   const base = (await projectDaemonUrl(flags)).replace(/\/$/, '');
-  const workspaceHeaders =
-    sub === 'new' || sub === 'list'
-      ? workspaceHeadersFromExplicitFlags(flags) ?? {}
-      : {};
+  const workspaceHeaders = workspaceHeadersFromExplicitFlags(flags) ?? {};
   switch (sub) {
     case 'new': {
       const [id] = positionalArgs(rest, conversationStringFlags);
@@ -9521,16 +9568,30 @@ Common options:
       process.stdout.write(JSON.stringify(data, null, 2) + '\n');
       return;
     }
-    case 'info': {
-      const id = rest.find((a) => !a.startsWith('-'));
-      if (!id) {
-        console.error('Usage: od conversation info <conversationId>');
-        process.exit(2);
+    case 'info':
+    case 'messages':
+    case 'rename':
+    case 'delete': {
+      const [id] = positionalArgs(rest, conversationStringFlags);
+      if (!id || (sub === 'rename' && (typeof flags.title !== 'string' || !flags.title.trim()))) {
+        return exitWithStructuredError({ code: 'CLI_USAGE', message: `Usage: od conversation ${sub} <conversationId>${sub === 'rename' ? ' --title "<title>"' : ''} [--json]` });
       }
-      const resp = await fetch(`${base}/api/conversations/${encodeURIComponent(id)}`);
+      const resp = await fetch(`${base}/api/conversations/${encodeURIComponent(id)}`, { headers: workspaceHeaders });
       if (!resp.ok) return structuredHttpFailure(resp);
       const data = await resp.json();
-      process.stdout.write(JSON.stringify(data, null, 2) + '\n');
+      if (sub === 'info') return process.stdout.write(JSON.stringify(data, null, 2) + '\n');
+      const projectId = data.conversation?.projectId;
+      if (typeof projectId !== 'string' || !projectId) {
+        return exitWithStructuredError({ code: 'CLI_REQUEST_FAILED', message: 'Daemon returned a conversation without its project ID.' });
+      }
+      const route = `${base}/api/projects/${encodeURIComponent(projectId)}/conversations/${encodeURIComponent(id)}`;
+      const response = await fetch(sub === 'messages' ? `${route}/messages` : route, {
+        method: sub === 'messages' ? 'GET' : sub === 'rename' ? 'PATCH' : 'DELETE',
+        headers: { ...workspaceHeaders, ...(sub === 'rename' ? { 'content-type': 'application/json' } : {}) },
+        ...(sub === 'rename' ? { body: JSON.stringify({ title: flags.title }) } : {}),
+      });
+      if (!response.ok) return structuredHttpFailure(response);
+      process.stdout.write(JSON.stringify(await response.json(), null, 2) + '\n');
       return;
     }
     default:

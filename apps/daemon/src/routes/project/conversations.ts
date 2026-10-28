@@ -1,5 +1,5 @@
 import type { Express } from 'express';
-import { MESSAGES_STREAM_CONTENT_TYPE, type ChatMessage, type ChatSessionMode } from '@open-design/contracts';
+import { MESSAGES_STREAM_CONTENT_TYPE, type ChatMessage, type ChatSessionMode, type ConversationResponse } from '@open-design/contracts';
 import { streamMessages } from '../../http/message-stream.js';
 import { readAnalyticsContext } from '../../analytics.js';
 import { nextForkedConversationTitle } from '../../conversation-fork-title.js';
@@ -132,6 +132,15 @@ export function registerProjectConversationRoutes(app: Express, ctx: RegisterPro
   };
 
   // ---- Conversations --------------------------------------------------------
+
+  app.get('/api/conversations/:id', async (req, res) => {
+    const conversation = getConversation(db, req.params.id);
+    if (!conversation || isProjectCommentAnchorConversationId(conversation.id) || !getProject(db, conversation.projectId)) {
+      return sendApiError(res, 404, 'CONVERSATION_NOT_FOUND', 'conversation not found');
+    }
+    if (!await authorizeProjectRequest(req, res, conversation.projectId, { mode: 'read' })) return;
+    res.json({ conversation } satisfies ConversationResponse);
+  });
 
   app.get('/api/projects/:id/conversations', async (req, res) => {
     if (!getProject(db, req.params.id)) {
