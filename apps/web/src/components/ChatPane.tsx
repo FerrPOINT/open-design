@@ -1,4 +1,5 @@
 import { reportExperienceEvent } from '../observability/experience-diagnostics';
+import { isPdlcMode } from '../pdlc/config';
 import { conversationMetaLabel } from '../runtime/chat/conversation-time';
 export { conversationMetaLabel } from '../runtime/chat/conversation-time';
 import { QuoteBar } from './chat/QuoteBar';
@@ -2503,7 +2504,7 @@ export function ChatPane({
   // The classifier still owns approved copy and handoffs, never extra buttons.
   const failedRunUsesCloud = retryAssistant?.agentId === 'amr';
   const showCloudRetry = Boolean(retryAssistant && failedRunUsesCloud && onRetry);
-  const showCloudSwitchCta = Boolean(
+  const showCloudSwitchCta = !isPdlcMode() && Boolean(
     retryAssistant && !failedRunUsesCloud
     && (onSwitchToAmrAndRetry || onOpenAmrSettings),
   );
@@ -4549,7 +4550,7 @@ export function ChatPane({
                     actions={(
                       <>
                         {/* OPEND-2807: two standing actions and one runtime action. */}
-                        <RunErrorCardAction
+                        {!isPdlcMode() && <RunErrorCardAction
                           type="button"
                           className="od-tooltip"
                           variant="secondary"
@@ -4559,7 +4560,7 @@ export function ChatPane({
                         >
                           <Icon name="headset" size={11} />
                           {t('chat.runError.contactSupportCta')}
-                        </RunErrorCardAction>
+                        </RunErrorCardAction>}
                         <ExportLogsAction />
                         {showCloudRetry && retryAssistant && onRetry ? (
                           <RunErrorCardAction

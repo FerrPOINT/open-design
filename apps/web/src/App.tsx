@@ -2276,7 +2276,7 @@ function AppInner({ platformSubject }: AppProps) {
     if (observedPublicShareLink && route.kind === 'project'
       && route.projectId === observedPublicShareLink.projectId
       && route.fileName === observedPublicShareLink.filePath) return;
-    if (!cloudIdentityRejected) return;
+    if (isPdlcMode() || !cloudIdentityRejected) return;
     if (route.kind === 'home' && route.view === 'onboarding') return;
     navigate({ kind: 'home', view: 'onboarding' }, { replace: true });
   }, [
