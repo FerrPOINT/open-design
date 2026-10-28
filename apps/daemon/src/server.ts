@@ -3167,7 +3167,7 @@ export async function startServer({
   let resolvedPort = port;
   let daemonShuttingDown = false;
   const pdlcConfig = pdlcConfiguration();
-  const pdlcInference = pdlcAiHubProvider();
+  const pdlcInference = pdlcAiHubProvider(RUNTIME_DATA_DIR, pdlcConfig !== null);
   const extraAllowedOrigins = configuredAllowedOrigins();
   const workspaceAuthorityCacheMode = resolveWorkspaceAuthorityCacheMode(
     process.env.OD_WORKSPACE_AUTHORITY_CACHE_MODE,

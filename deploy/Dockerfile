@@ -2,8 +2,8 @@ ARG NODE_IMAGE=docker.io/library/node:24-alpine
 ARG RUNTIME_IMAGE=docker.io/library/node:24-alpine
 
 FROM ${NODE_IMAGE} AS agent-runtime
-COPY deploy/install-opencode.mjs /tmp/install-opencode.mjs
-RUN node /tmp/install-opencode.mjs && \
+COPY deploy/install-opencode.ts /tmp/install-opencode.ts
+RUN node /tmp/install-opencode.ts && \
     mkdir /opencode && tar -xzf /tmp/opencode.tgz -C /opencode --strip-components=2 package/bin/opencode && \
     chmod 755 /opencode/opencode && /opencode/opencode --version
 
@@ -144,3 +144,4 @@ USER open-design
 COPY --from=agent-runtime /opencode/opencode /usr/local/bin/opencode
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["node", "apps/daemon/dist/cli.js", "--no-open"]
+
