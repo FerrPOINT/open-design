@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react';
 import { fetchVelaLoginStatus } from '../../providers/daemon';
 import { currentWorkspaceAccountGeneration } from '../../collab/workspace-identity';
 import { AMR_LOGIN_STATUS_EVENT, isAmrSessionAuthenticated } from '../amrLoginPolling';
+import { isPdlcMode } from '../../pdlc/config';
 
 /** Existing login projection's user.id is the app account id, never a workspace membership. */
 export function useShareGuideAppUserId() {
   const generation = currentWorkspaceAccountGeneration();
   const [account, setAccount] = useState<{ generation: number; appUserId: string | null } | null>(null);
   useEffect(() => {
+    if (isPdlcMode()) return;
     let request = 0;
     let disposed = false;
     const refresh = () => {

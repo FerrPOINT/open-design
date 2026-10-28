@@ -31,7 +31,9 @@ export const OPEN_CODE_EVENT_PLUGIN_SOURCE = String.raw`export default async fun
         }
         const headers = new Headers(request.headers);
         headers.set('Idempotency-Key', key);
-        const response = await fetch(new Request(request, { headers, redirect: 'error' }));
+        const proxy = process.env?.OD_PDLC_INFERENCE_PROXY;
+        const response = await fetch(new Request(request, { headers, redirect: 'error' }),
+          proxy ? { proxy } : undefined);
         if (!response.ok || !response.body) return response;
         const sse = response.headers.get('content-type')?.includes('text/event-stream');
         const reader = response.body.getReader();

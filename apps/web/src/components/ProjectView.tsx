@@ -14283,7 +14283,7 @@ export function ProjectView({
               onRequestPluginFolderAgentAction={handlePluginFolderAgentAction}
               activePluginActionPaths={activePluginActionPaths}
               hiddenPluginActionPaths={hiddenAssistantPluginActionPaths}
-              onShareToOpenDesign={handleShareToOpenDesign}
+              onShareToOpenDesign={isPdlcMode() ? undefined : handleShareToOpenDesign}
               shareToOpenDesignBusyMessageId={shareToOpenDesignBusyMessageId}
               forceStreamingMessageIds={forceStreamingPluginMessageIds}
               initialDraft={chatInitialDraft}
@@ -14355,7 +14355,7 @@ export function ProjectView({
               }}
               onContinueRemainingTasks={handleContinueRemainingTasks}
               onAssistantFeedback={handleAssistantFeedback}
-              onArtifactShare={handleArtifactShare}
+              onArtifactShare={isPdlcMode() ? undefined : handleArtifactShare}
               onArtifactDownload={handleArtifactDownload}
               onForkFromMessage={
                 projectMutationReadOnly ? undefined : handleForkFromMessage

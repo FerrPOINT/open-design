@@ -685,8 +685,8 @@ process.stdin.on('end', () => {
         const allowedCwd = [...cwdAliases].find(
           (cwd) =>
             externalDirectory[cwd] === 'allow' &&
-            externalDirectory[`${cwd}/*`] === 'allow' &&
-            externalDirectory[`${cwd}/**`] === 'allow',
+            externalDirectory[join(cwd, '*')] === 'allow' &&
+            externalDirectory[join(cwd, '**')] === 'allow',
         );
         expect(allowedCwd).toBeTruthy();
       },
@@ -766,7 +766,7 @@ process.stdin.on('end', () => {
         const allowedRoot = [...roots].find(
           (root) =>
             externalDirectory[root] === 'allow' &&
-            externalDirectory[`${root}/**`] === 'allow',
+            externalDirectory[join(root, '**')] === 'allow',
         );
 
         expect(allowedRoot).toBeTruthy();

@@ -1,4 +1,5 @@
 import { validateCommentSaveTarget } from '../comments/validate-save-target';
+import { isPdlcMode } from '../pdlc/config';
 import { previewStorageKey, readPreviewStorage, savePreviewStorageMessage } from '../runtime/preview-storage';
 import { commentSelectorsMatch, commentUsesIdentity, ownerCommentNeedsLocation, resolveOwnerCommentAnchor } from '../comments/owner-anchor';
 import { indexCommentTargets } from '../comments/target-index';
@@ -6971,7 +6972,7 @@ function ReactComponentViewer({
                     still share one popover shell so switching keeps the menu
                     anchored in place. Export leads — it is the far more used
                     of the two (see the chrome header copy). */}
-                {(['export', 'share'] as const).map((tab) => (
+                {(['export', 'share'] as const).filter(tab => tab !== 'share' || !isPdlcMode()).map((tab) => (
                   <button
                     key={tab}
                     type="button"
@@ -15691,7 +15692,7 @@ function HtmlViewer({
   // guards the actual export/publish handlers.
   // Preview memory policy does not determine publication eligibility. The share
   // plan and POST validate the original file, never the routing-only preview.
-  const rawCanShare = isShareableArtifact;
+  const rawCanShare = isShareableArtifact && !isPdlcMode();
   const shareGuideAppUserId = useShareGuideAppUserId();
   const projectShareHistoryState = useProjectShareHistoryState(projectId, workspaceContext, JSON.stringify([file.name, publishedFileSlug, publishedFileUrl]));
   const projectShareHistory = projectShareHistoryState.history;
@@ -15707,7 +15708,7 @@ function HtmlViewer({
   const rawCanDownload = source !== null && (isShareableArtifact || isMarkdownArtifact);
   const canShare = rawCanShare && !viewerOnly;
   const canDownload = rawCanDownload && !viewerOnly;
-  const canExportHtml = canShare && source !== null;
+  const canExportHtml = isShareableArtifact && !viewerOnly && source !== null;
   // PPTX export is slide-based, so show it only for explicit decks plus
   // structured deck runtimes. Do not key this off plain `.slide`: ordinary
   // parallax/long pages may use that class but must remain page-mode exports.
@@ -17699,6 +17700,7 @@ function HtmlViewer({
                     aria-haspopup="menu"
                     aria-expanded={deployMenuOpen && unifiedActionTab === 'export'}
                     aria-label={t('fileViewer.unifiedExportTab')}
+                    data-artifact-anchor={isPdlcMode() ? toolbarMenuAnchorId : undefined}
                     disabled={viewerOnly}
                     title={viewerOnly ? viewerOnlyDisabledTitle : undefined}
                     onClick={openDownloadMenu}
@@ -17707,7 +17709,7 @@ function HtmlViewer({
                     <span>{t('fileViewer.unifiedExportTab')}</span>
                   </button>
                 ) : null}
-                  <button
+                  {!isPdlcMode() && <button
                     type="button"
                     className={`chrome-action chrome-action-secondary chrome-action-with-label chrome-action-text-only chrome-action-unified ${shareEntryStyles.toolbar}`}
                     aria-haspopup="menu"
@@ -17721,7 +17723,7 @@ function HtmlViewer({
                     {/* Owner C0: share the artifact card's forward-arrow glyph. */}
                     <RemixIcon name="share-forward-line" size={15} />
                     <span>{shareMenuLabel}</span>
-                  </button>
+                  </button>}
                   {afterExportGuide.noticeId !== null ? (
                     <AfterExportShareGuide
                       key={afterExportGuide.noticeId}

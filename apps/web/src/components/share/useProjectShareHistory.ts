@@ -3,6 +3,7 @@ import type { ProjectShareHistoryResponse, WorkspaceCollabContext } from '@open-
 import { currentWorkspaceAccountGeneration, workspaceAccountScopedCacheKey, workspaceProjectHeaders } from '../../collab/workspace-identity';
 import { AMR_LOGIN_STATUS_EVENT } from '../amrLoginPolling';
 import { PROJECT_SHARE_HISTORY_CHANGED_EVENT } from './share-publication-events';
+import { isPdlcMode } from '../../pdlc/config';
 
 export function isProjectShareHistory(value: unknown, projectId: string): value is ProjectShareHistoryResponse {
   if (!value || typeof value !== 'object') return false;
@@ -20,10 +21,12 @@ export function isProjectShareHistory(value: unknown, projectId: string): value 
 export type ProjectShareReadStatus = 'idle' | 'loading' | 'ready' | 'error';
 
 export function useProjectShareHistoryState(projectId: string | undefined, context: WorkspaceCollabContext | null | undefined, publicationKey: string) {
+  const enabled = Boolean(projectId) && !isPdlcMode();
   const generation = currentWorkspaceAccountGeneration();
   const scope = JSON.stringify([projectId, workspaceAccountScopedCacheKey(context), publicationKey]);
   const [result, setResult] = useState<{ scope: string; history: ProjectShareHistoryResponse | null } | null>(null);
   useEffect(() => {
+    if (!enabled) return;
     let disposed = false;
     let attempt = 0;
     let controller: AbortController | undefined;
@@ -63,9 +66,9 @@ export function useProjectShareHistoryState(projectId: string | undefined, conte
       window.removeEventListener('focus', refresh);
       window.removeEventListener(PROJECT_SHARE_HISTORY_CHANGED_EVENT, refreshChangedProject);
     };
-  }, [projectId, context, generation, scope]);
+  }, [projectId, context, generation, scope, enabled]);
   const current = result?.scope === scope ? result : null;
-  const status: ProjectShareReadStatus = !projectId ? 'idle' : !current ? 'loading' : current.history ? 'ready' : 'error';
+  const status: ProjectShareReadStatus = !enabled ? 'idle' : !current ? 'loading' : current.history ? 'ready' : 'error';
   return { history: current?.history ?? null, status };
 }
 

@@ -3,9 +3,9 @@ import { webcrypto } from 'node:crypto';
 import { expect, test, vi } from 'vitest';
 import { OPEN_CODE_EVENT_PLUGIN_SOURCE } from '../../src/runtimes/opencode-event-plugin.js';
 
-async function transport(fetch: typeof globalThis.fetch, managed = true) {
+async function transport(fetch: typeof globalThis.fetch, managed = true, proxyUrl?: string) {
   const factory = vm.runInNewContext(OPEN_CODE_EVENT_PLUGIN_SOURCE.replace('export default', '(') + ')', {
-    process: { env: managed ? { OD_PDLC_INFERENCE_PROVIDER: 'open-design-byok' } : {} },
+    process: { env: managed ? { OD_PDLC_INFERENCE_PROVIDER: 'open-design-byok', ...(proxyUrl ? { OD_PDLC_INFERENCE_PROXY: proxyUrl } : {}) } : {} },
     Request, Response, Headers, URL, crypto: webcrypto, TextEncoder, TextDecoder, ReadableStream, fetch,
   });
   const config = { provider: { 'open-design-byok': { options: { baseURL: 'https://hub.example/v1' } } } };
@@ -19,6 +19,18 @@ test('does not change standalone providers', async () => {
   const original = vi.fn();
   expect((await transport(original, false)).fetch).toBeUndefined();
   expect(original).not.toHaveBeenCalled();
+});
+test('the installation proxy preserves the destination guard and retry UUID', async () => {
+  const upstream = vi.fn().mockRejectedValueOnce(new Error('connection reset')).mockImplementation(async () => done());
+  const client = (await transport(upstream as typeof fetch, true, 'http://proxy.test:3128')).fetch!;
+  await expect(client('https://wrong.example/v1/chat/completions', init())).rejects.toThrow('destination refused');
+  await expect(client(endpoint, init())).rejects.toThrow('connection reset');
+  await (await client(endpoint, init())).text();
+  expect(upstream).toHaveBeenCalledTimes(2);
+  const [first, second] = upstream.mock.calls;
+  expect(first?.[1]).toEqual({ proxy: 'http://proxy.test:3128' });
+  expect(first?.[0].headers.get('Idempotency-Key')).toBe(second?.[0].headers.get('Idempotency-Key'));
+  expect(second?.[0].redirect).toBe('error');
 });
 test('refuses credential redirection and carries bearer only to the configured endpoint', async () => {
   const requests: Request[] = [];

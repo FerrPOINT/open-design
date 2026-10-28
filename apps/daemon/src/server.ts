@@ -29,6 +29,7 @@ import { execFile } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { isLocalPluginSource } from './plugins/installer.js';
 import fs from 'node:fs';
 import os from 'node:os';
 import net from 'node:net';
@@ -9921,10 +9922,10 @@ export async function startServer({
       } else {
         source = typeof body.source === 'string' ? body.source : '';
         if (!source) return res.status(400).json({ error: 'source is required' });
-        const looksAbsolute = source.startsWith('/') || source.startsWith('./') || source.startsWith('~');
+        const looksLocal = isLocalPluginSource(source);
         const looksGithub = source.startsWith('github:');
         const looksHttps = /^https:\/\//i.test(source);
-        if (!looksAbsolute && !looksGithub && !looksHttps) {
+        if (!looksLocal && !looksGithub && !looksHttps) {
           const { resolvePluginInMarketplaces } = await import('./plugins/marketplaces.js');
           let lookupName = source;
           const lockfile = await readPluginLockfile(PLUGIN_LOCKFILE_PATH);

@@ -31,8 +31,26 @@ import type { ProjectFile } from '../../src/types';
 
 afterEach(() => {
   cleanup();
+  delete window.__OD_PDLC_CONFIG__;
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+it('PDLC removes Cloud sharing while retaining the complete native export menu', async () => {
+  window.__OD_PDLC_CONFIG__ = {
+    issuer: 'https://auth.example', clientId: 'open-design', publicOrigin: 'https://design.example',
+    applicationKey: 'open-design', hostOrigin: null, catalogUrl: null,
+  };
+  stubFetch();
+  renderViewer();
+  await waitFor(() => expect(document.querySelector('button.chrome-action-unified[aria-label="Export"]')).not.toBeNull());
+  expect(document.querySelector('button.chrome-action-unified[aria-label="Share"]')).toBeNull();
+  fireEvent.click(toolbarAction('Export'));
+  await waitFor(() => expect(exportPanel()).not.toBeNull());
+  expect(screen.getByRole('menuitem', { name: /Export as image/i })).toBeVisible();
+  expect(sharePanel()).toBeNull();
+  expect(screen.queryByText(/Sign in to Open Design/i)).not.toBeInTheDocument();
+  expect(vi.mocked(fetch).mock.calls.some(([url]) => /\/share-state|\/integrations\/vela/.test(String(url)))).toBe(false);
 });
 beforeEach(() => {
   resetConsumedActionRequestsForTests();

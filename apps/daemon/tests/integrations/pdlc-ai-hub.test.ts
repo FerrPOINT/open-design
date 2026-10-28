@@ -1,6 +1,9 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import http from 'node:http';
+import net from 'node:net';
+import { once } from 'node:events';
 import { afterAll, afterEach, expect, test, vi } from 'vitest';
 import { pdlcAiHubProvider, pdlcInferenceStatus } from '../../src/integrations/pdlc-ai-hub.js';
 
@@ -106,4 +109,53 @@ test('invalid direct config never silently falls back to Hub and key errors are 
   expect(() => direct({ ...directConfig, transport: 'unknown' })).toThrow('transport');
   writeFileSync(path.join(root, 'pdlc-inference.json'), '{invalid');
   expect(() => pdlcAiHubProvider(root, true)).toThrow('private configuration is unavailable or invalid');
+});
+
+test('an installation proxy applies to model catalog checks and the managed runtime only', async () => {
+  const proxyUrl = 'http://http.docker.internal:3128';
+  const provider = direct({ ...directConfig, proxyUrl })!;
+  expect(provider.env.OD_PDLC_INFERENCE_PROXY).toBe(proxyUrl);
+  expect(provider.env.HTTP_PROXY).toBeUndefined();
+  const request = vi.fn().mockResolvedValue(new Response('{"data":[{"id":"main-dev"}]}'));
+  expect(await pdlcInferenceStatus(provider, request)).toEqual({ state: 'ready', model: 'main-dev' });
+  expect(request.mock.calls[0]?.[1]?.dispatcher).toBeDefined();
+});
+
+test.each(['ftp://proxy.example', 'http://user:secret@proxy.example', 'http://proxy.example/path',
+  'http://proxy.example?secret=value', 'http://proxy.example#fragment', 'not a URL'])(
+  'an invalid installation proxy is rejected without disclosing its value', proxyUrl => {
+    expect(() => direct({ ...directConfig, proxyUrl })).toThrow('PDLC inference proxy URL is invalid');
+  });
+
+test('the catalog reaches its configured target through the proxy, without direct routing', async () => {
+  const catalog = http.createServer((req, res) => {
+    expect(req.url).toBe('/v1/models');
+    expect(req.headers.authorization).toBe(`Bearer ${directConfig.key}`);
+    res.setHeader('Content-Type', 'application/json');
+    res.end('{"data":[{"id":"main-dev"}]}');
+  });
+  catalog.listen(0, '127.0.0.1'); await once(catalog, 'listening');
+  const port = (catalog.address() as net.AddressInfo).port;
+  const destinations: string[] = [];
+  const proxy = http.createServer();
+  proxy.on('connect', (req, client, head) => {
+    destinations.push(req.url!);
+    const upstream = net.connect(port, '127.0.0.1', () => {
+      client.write('HTTP/1.1 200 Connection Established\r\n\r\n');
+      if (head.length) upstream.write(head);
+      client.pipe(upstream); upstream.pipe(client);
+    });
+    client.on('error', () => upstream.destroy());
+    upstream.on('error', () => client.destroy());
+  });
+  proxy.listen(0, '127.0.0.1'); await once(proxy, 'listening');
+  try {
+    const proxyUrl = `http://127.0.0.1:${(proxy.address() as net.AddressInfo).port}`;
+    const provider = direct({ ...directConfig, baseUrl: 'http://10.254.254.254:4000/v1', allowInsecurePrivateHttp: true, proxyUrl });
+    expect(await pdlcInferenceStatus(provider)).toEqual({ state: 'ready', model: 'main-dev' });
+    expect(destinations).toEqual(['10.254.254.254:4000']);
+  } finally {
+    proxy.close(); catalog.close();
+    await Promise.all([once(proxy, 'close'), once(catalog, 'close')]);
+  }
 });
