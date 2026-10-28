@@ -12,7 +12,7 @@ function load(value: unknown) {
   writeFileSync(keyFile, JSON.stringify(value));
   return pdlcAiHubProvider(root, true);
 }
-afterEach(() => rmSync(keyFile, { force: true }));
+afterEach(() => { rmSync(keyFile, { force: true }); rmSync(path.join(root, 'pdlc-inference.json'), { force: true }); });
 afterAll(() => rmSync(root, { recursive: true, force: true }));
 test('standalone stays unchanged; partial configuration and nonlocal HTTP fail closed', () => {
   expect(pdlcAiHubProvider(root, true)).toBeNull();
@@ -39,7 +39,7 @@ test('key errors disclose neither the credential nor filesystem details', () => 
   writeFileSync(keyFile, '{bad json');
   expect(() => pdlcAiHubProvider(root, true)).toThrow('private configuration is unavailable or invalid');
   writeFileSync(keyFile, 'sensitive-invalid-value');
-  expect(() => load({ ...config, key: 'sensitive-invalid-value' })).toThrow('PDLC AI Hub key is invalid');
+  expect(() => load({ ...config, key: 'sensitive-invalid-value' })).toThrow('PDLC inference key is invalid');
   expect(() => load({ ...config, model: 'https://escape.example' })).toThrow('published virtual model slug');
 });
 
@@ -66,4 +66,44 @@ test('missing models, malformed replies and timeout remain distinct from access 
   expect((await pdlcInferenceStatus(provider, request)).state).toBe('model_unavailable');
   expect((await pdlcInferenceStatus(provider, request)).state).toBe('hub_unavailable');
   expect(await pdlcInferenceStatus(provider, request)).toEqual({ state: 'hub_unavailable', model: 'studio-main' });
+});
+
+const directConfig = { transport: 'openai-compatible', baseUrl: 'https://gateway.example/api/v1', model: 'main-dev', key: 'private-direct-key' };
+function direct(value: unknown) {
+  writeFileSync(path.join(root, 'pdlc-inference.json'), JSON.stringify(value));
+  return pdlcAiHubProvider(root, true);
+}
+
+test('direct server config overrides the legacy Hub route without exposing its key', async () => {
+  load(config);
+  const provider = direct(directConfig)!;
+  const request = vi.fn().mockResolvedValue(new Response('{"data":[{"id":"main-dev"}]}'));
+  expect(await pdlcInferenceStatus(provider, request)).toEqual({ state: 'ready', model: 'main-dev' });
+  expect(request).toHaveBeenCalledWith('https://gateway.example/api/v1/models', expect.objectContaining({
+    headers: { Authorization: 'Bearer private-direct-key' }, redirect: 'error',
+  }));
+  expect(provider.env.OD_PDLC_INFERENCE_PROVIDER).toBe(provider.providerId);
+  expect(provider.config).toMatchObject({ model: 'open-design-byok/main-dev', small_model: 'open-design-byok/main-dev' });
+  expect(JSON.stringify(provider.config)).not.toContain(directConfig.key);
+});
+
+test.each(['10.4.5.6', '172.16.0.1', '172.31.255.254', '192.168.10.1'])(
+  'private HTTP %s requires installation opt-in', host => {
+    const value = { ...directConfig, baseUrl: `http://${host}:4000/v1` };
+    expect(() => direct(value)).toThrow('explicitly allowed private HTTP');
+    expect(direct({ ...value, allowInsecurePrivateHttp: true })!.catalogUrl).toBe(value.baseUrl + '/models');
+  });
+
+test.each(['http://public.example/v1', 'http://172.32.0.1/v1', 'http://192.169.1.1/v1',
+  'https://user:password@gateway.example/v1', 'https://gateway.example/v1?key=secret', 'https://gateway.example/v1#fragment'])(
+  'direct configuration rejects unsafe URL %s', baseUrl => {
+    expect(() => direct({ ...directConfig, baseUrl, allowInsecurePrivateHttp: true })).toThrow();
+  });
+
+test('invalid direct config never silently falls back to Hub and key errors are safe', () => {
+  load(config);
+  expect(() => direct({ ...directConfig, key: 'secret\nheader' })).toThrow('PDLC inference key is invalid');
+  expect(() => direct({ ...directConfig, transport: 'unknown' })).toThrow('transport');
+  writeFileSync(path.join(root, 'pdlc-inference.json'), '{invalid');
+  expect(() => pdlcAiHubProvider(root, true)).toThrow('private configuration is unavailable or invalid');
 });

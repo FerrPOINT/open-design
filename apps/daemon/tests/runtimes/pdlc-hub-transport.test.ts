@@ -5,7 +5,7 @@ import { OPEN_CODE_EVENT_PLUGIN_SOURCE } from '../../src/runtimes/opencode-event
 
 async function transport(fetch: typeof globalThis.fetch, managed = true) {
   const factory = vm.runInNewContext(OPEN_CODE_EVENT_PLUGIN_SOURCE.replace('export default', '(') + ')', {
-    process: { env: managed ? { OD_PDLC_AI_HUB_PROVIDER: 'open-design-byok' } : {} },
+    process: { env: managed ? { OD_PDLC_INFERENCE_PROVIDER: 'open-design-byok' } : {} },
     Request, Response, Headers, URL, crypto: webcrypto, TextEncoder, TextDecoder, ReadableStream, fetch,
   });
   const config = { provider: { 'open-design-byok': { options: { baseURL: 'https://hub.example/v1' } } } };

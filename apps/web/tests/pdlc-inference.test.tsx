@@ -20,7 +20,7 @@ test('home generation uses the same access gate and unlocks only after an explic
   vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ state: allowed ? 'ready' : 'access_denied', model: 'main-dev' }))));
   const onSubmit = vi.fn();
   render(<I18nProvider initial="en"><InferenceAccess><HomeHero {...homeProps} onSubmit={onSubmit} /></InferenceAccess></I18nProvider>);
-  await screen.findByText('AI Hub access denied · main-dev');
+  await screen.findByText('Model access denied · main-dev');
   expect(screen.getByTestId('home-hero-submit')).toBeDisabled();
   fireEvent.click(screen.getByTestId('home-hero-submit')); expect(onSubmit).not.toHaveBeenCalled();
   allowed = true; fireEvent.click(screen.getByRole('button', { name: 'Check' }));
@@ -42,7 +42,7 @@ test('a typed prompt stays unsent until a user-initiated non-inference access ch
   const onSend = vi.fn();
   render(<I18nProvider initial="en"><InferenceAccess><ChatComposer projectId="studio" projectFiles={[]}
     streaming={false} onEnsureProject={async () => 'studio'} onSend={onSend} onStop={vi.fn()} /></InferenceAccess></I18nProvider>);
-  await screen.findByText('AI Hub access denied · studio-main');
+  await screen.findByText('Model access denied · studio-main');
   await flushMounts();
   await typeAndSettle('Create a small page');
   expect(screen.getByTestId('chat-send')).toBeDisabled();

@@ -9095,7 +9095,7 @@ export async function startServer({
       const status = await pdlcInferenceStatus(pdlcInference);
       return { ok: status.state === 'ready', kind: status.state === 'ready' ? 'success' as const : 'upstream_unavailable' as const,
         latencyMs: Math.round(performance.now() - started), model: status.model ?? undefined,
-        detail: status.state === 'ready' ? 'AI Hub: доступ к модели проверен без генерации.' : `AI Hub: ${status.state}` };
+        detail: status.state === 'ready' ? 'Доступ к модели проверен без генерации.' : `Model access: ${status.state}` };
     },
     getAgentDef,
     isKnownModel,
@@ -11625,12 +11625,12 @@ export async function startServer({
       );
     if (!def.bin)
       return failRun('AGENT_UNAVAILABLE', 'agent has no binary');
-    const managedHubRun = def.id === 'opencode' && pdlcInference !== null;
+    const managedInferenceRun = def.id === 'opencode' && pdlcInference !== null;
     if (pdlcConfig && def.id === 'opencode') {
       const access = await pdlcInferenceStatus(pdlcInference);
-      if (access.state !== 'ready') return failRun('PDLC_HUB_UNAVAILABLE', `AI Hub: ${access.state}. Проверьте доступ к модели в настройках.`);
+      if (access.state !== 'ready') return failRun('PDLC_HUB_UNAVAILABLE', `Model access: ${access.state}. Проверьте доступ к модели в настройках.`);
     }
-    const byokOpenCodeProvider = managedHubRun ? pdlcInference : def.id === 'byok-opencode'
+    const byokOpenCodeProvider = managedInferenceRun ? pdlcInference : def.id === 'byok-opencode'
       ? buildOpenCodeByokProviderConfig(
           byokProvider,
           typeof model === 'string' ? model : null,
@@ -11642,7 +11642,7 @@ export async function startServer({
         BYOK_OPENCODE_PROVIDER_REQUIRED_MESSAGE,
       );
     }
-    const requestedRuntimeModel = managedHubRun || def.id === 'byok-opencode'
+    const requestedRuntimeModel = managedInferenceRun || def.id === 'byok-opencode'
       ? byokOpenCodeProvider?.modelId ?? null
       : model;
     // Validate the checked-in runtime timeout hints immediately
@@ -13456,9 +13456,9 @@ export async function startServer({
     // state in case it fires first.
     const scheduleRetryRestart = (delayMs, retryChatBody = chatBody) => {
       // A new CLI has a new idempotency map. Never silently replay a managed paid turn.
-      if (managedHubRun) {
+      if (managedInferenceRun) {
         send('error', createSseErrorPayload('PDLC_HUB_OUTCOME_UNKNOWN',
-          'Автоматический повтор отключён. Предыдущий запрос мог выполниться в AI Hub; проверьте его перед новой попыткой.',
+          'Автоматический повтор отключён. Предыдущий запрос мог выполниться у провайдера; проверьте его перед новой попыткой.',
           { retryable: false }));
         return finishWithRetryDecision('failed', 1, null, { allowRetry: false });
       }
@@ -13562,10 +13562,10 @@ export async function startServer({
       signal = null,
       { allowRetry = true } = {},
     ) => {
-      allowRetry = allowRetry && !managedHubRun;
-      if (managedHubRun && status === 'failed') {
+      allowRetry = allowRetry && !managedInferenceRun;
+      if (managedInferenceRun && status === 'failed') {
         send('error', createSseErrorPayload('PDLC_HUB_OUTCOME_UNKNOWN',
-          'Запуск прерван без автоматического повтора. Предыдущий запрос мог выполниться в AI Hub; перед новой попыткой проверьте его статус.',
+          'Запуск прерван без автоматического повтора. Предыдущий запрос мог выполниться у провайдера; перед новой попыткой проверьте его статус.',
           { retryable: false }));
       }
       lifecycle.mark('finalize_start');
@@ -15025,17 +15025,17 @@ export async function startServer({
       }, agentLaunch);
       if (def.id === 'opencode' || def.id === 'byok-opencode') {
         try {
-          const versions = await ensureDetectedRuntimeVersions('opencode', managedHubRun
+          const versions = await ensureDetectedRuntimeVersions('opencode', managedInferenceRun
             ? inferenceAgentEnvs({ opencode: configuredAgentEnv }).opencode : configuredAgentEnv);
           if (!versions?.agentCliVersion) {
             console.info('[opencode] optional tool previews disabled: CLI version unavailable; later launches retry detection after the short cache expires');
           }
           const applied = await applyOpenCodeEventPlugin(env, RUNTIME_DATA_DIR, versions?.agentCliVersion, agentSpawnEnv.OPENCODE_CONFIG_CONTENT);
-          if (managedHubRun && !applied) throw new Error('AI Hub transport plugin is unavailable');
+          if (managedInferenceRun && !applied) throw new Error('Inference transport plugin is unavailable');
         } catch (error) {
-          // The Hub hook owns idempotency and credential destination checks;
+          // The managed hook pins credential destinations and transport request IDs;
           // unlike optional preview events, it is required before any model I/O.
-          if (managedHubRun) throw new Error('AI Hub transport plugin could not be loaded');
+          if (managedInferenceRun) throw new Error('Inference transport plugin could not be loaded');
           console.warn('[opencode] optional tool previews unavailable:', error instanceof Error ? error.message : String(error));
         }
       }
@@ -16777,7 +16777,7 @@ export async function startServer({
       // class). Clearing the stale handle here lets the next turn start fresh +
       // re-seed the full transcript: one cold turn, never a broken conversation.
       if (
-        !managedHubRun &&
+        !managedInferenceRun &&
         !run.cancelRequested &&
         !forceInternalResume &&
         (runtimeResumesSessionById(def) || def.resumesSessionViaAcpLoad === true) &&

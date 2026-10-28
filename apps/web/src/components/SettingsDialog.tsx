@@ -4621,7 +4621,7 @@ export function SettingsDialog({
             <section className="settings-section">
               <div className="section-head">
                 <div>
-                  <p className="hint">{isPdlcMode() ? (locale === 'ru' ? 'CLI установлен на сервере. Модель OpenCode управляется AI Hub; проверка доступа не запускает генерацию.' : 'The CLI is installed on the server. AI Hub manages the OpenCode model; the access check does not generate content.') : t('settings.codeAgentHint')}</p>
+                  <p className="hint">{isPdlcMode() ? (locale === 'ru' ? 'CLI установлен на сервере. Модель OpenCode настроена на сервере; проверка доступа не запускает генерацию.' : 'The CLI is installed on the server. The OpenCode model is configured on the server; the access check does not generate content.') : t('settings.codeAgentHint')}</p>
                 </div>
               </div>
               {initialAgentScanRunning ? (

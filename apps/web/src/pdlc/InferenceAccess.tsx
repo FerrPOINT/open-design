@@ -21,11 +21,11 @@ export function InferenceAccess({ children }: { children: ReactNode }) {
     return () => controller.abort();
   }, [attempt]);
   const reasons: Record<PdlcInferenceStatus['state'], string> = ru ? {
-    ready: 'Доступ к модели проверен', not_configured: 'Подключение AI Hub не настроено',
-    access_denied: 'Нет доступа к модели в AI Hub', model_unavailable: 'Модель не опубликована или не разрешена',
-    hub_unavailable: 'Не удалось проверить AI Hub',
-  } : { ready: 'Model access checked', not_configured: 'AI Hub is not configured', access_denied: 'AI Hub access denied',
-    model_unavailable: 'Model is not published or allowed', hub_unavailable: 'AI Hub check failed' };
+    ready: 'Доступ к модели проверен', not_configured: 'Подключение модели не настроено',
+    access_denied: 'Нет доступа к модели', model_unavailable: 'Модель недоступна в каталоге',
+    hub_unavailable: 'Не удалось проверить подключение модели',
+  } : { ready: 'Model access checked', not_configured: 'Model connection is not configured', access_denied: 'Model access denied',
+    model_unavailable: 'Model is unavailable in the catalog', hub_unavailable: 'Model connection check failed' };
   return <Access.Provider value={status}>
     <div className="pdlc-inference-status" role="status" data-state={status?.state ?? 'checking'}>
       <span>{status ? reasons[status.state] : ru ? 'Проверка доступа к модели…' : 'Checking model access…'}{status?.model ? ` · ${status.model}` : ''}</span>

@@ -4,15 +4,15 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 // Generated runtime module, carried in the daemon bundle so packaged users do
-// not need an npm plugin install. The provider hook is active only for managed Hub runs.
+// not need an npm plugin install. The provider hook is active only for managed inference runs.
 export const OPEN_CODE_EVENT_PLUGIN_SOURCE = String.raw`export default async function () {
   const seen = new Map();
   return {
     config: async (config) => {
-      const id = process.env?.OD_PDLC_AI_HUB_PROVIDER;
+      const id = process.env?.OD_PDLC_INFERENCE_PROVIDER || process.env?.OD_PDLC_AI_HUB_PROVIDER;
       if (!id) return;
       const options = config.provider?.[id]?.options;
-      if (!options?.baseURL) throw new Error('AI Hub provider configuration is missing');
+      if (!options?.baseURL) throw new Error('Inference provider configuration is missing');
       const endpoint = new URL(options.baseURL.replace(/\/$/, '') + '/chat/completions').href;
       const pending = new Map();
       // OpenCode can retry both in the SDK and around a failed stream. Keep the
@@ -20,12 +20,12 @@ export const OPEN_CODE_EVENT_PLUGIN_SOURCE = String.raw`export default async fun
       // A tool step changes the body; a new CLI invocation has its own map.
       options.fetch = async (input, init) => {
         const request = new Request(input, init);
-        if (request.url !== endpoint || request.method !== 'POST') throw new Error('AI Hub destination refused');
+        if (request.url !== endpoint || request.method !== 'POST') throw new Error('Inference destination refused');
         const body = await request.clone().text();
         const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(body))), b => b.toString(16).padStart(2, '0')).join('');
         let key = pending.get(digest);
         if (!key) {
-          if (pending.size >= 256) throw new Error('AI Hub unresolved request limit reached');
+          if (pending.size >= 256) throw new Error('Inference unresolved request limit reached');
           key = crypto.randomUUID();
           pending.set(digest, key);
         }
