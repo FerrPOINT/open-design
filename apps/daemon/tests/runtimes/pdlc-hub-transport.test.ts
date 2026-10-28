@@ -28,7 +28,7 @@ test('the installation proxy preserves the destination guard and retry UUID', as
   await (await client(endpoint, init())).text();
   expect(upstream).toHaveBeenCalledTimes(2);
   const [first, second] = upstream.mock.calls;
-  expect(first?.[1]).toEqual({ proxy: 'http://proxy.test:3128' });
+  expect(first?.[1]).toEqual({ proxy: { url: 'http://proxy.test:3128', respectNoProxy: false } });
   expect(first?.[0].headers.get('Idempotency-Key')).toBe(second?.[0].headers.get('Idempotency-Key'));
   expect(second?.[0].redirect).toBe('error');
 });
