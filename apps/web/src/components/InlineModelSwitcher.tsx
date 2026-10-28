@@ -1447,7 +1447,7 @@ export function InlineModelSwitcher({
                           /* A long catalog ellipsises these rows and many
                              share a prefix, so the full model name must stay
                              readable on hover. A locked row keeps its reason. */
-                          title={lockedHint ?? m.label}
+                          title={lockedHint ?? (managedModel ? m.id || m.label : m.label)}
                           className={
                             'inline-switcher__agent' +
                             (active ? ' is-active' : '') +
