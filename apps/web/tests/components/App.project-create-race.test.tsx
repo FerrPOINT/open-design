@@ -2732,6 +2732,12 @@ describe('App project creation routing', () => {
 
     render(<App />);
 
+    await waitFor(() => {
+      expect(mockedListProjects).toHaveBeenCalledWith(expect.objectContaining({
+        workspaceContext: expect.objectContaining({ workspaceId: 'ws-1', workspaceMemberId: 'wm-1' }),
+      }));
+      expect(screen.getByTestId('entry-projects-loading')).toHaveTextContent('false');
+    });
     fireEvent.click(await screen.findByRole('button', { name: 'Open catalog project' }));
 
     await waitFor(() => {
@@ -2740,7 +2746,8 @@ describe('App project creation routing', () => {
     });
     expect(mockedGetProject).toHaveBeenCalledWith(
       'project-shared',
-      workspaceContext('ws-1', 'wm-1'),
+      expect.objectContaining({ workspaceId: 'ws-1', workspaceType: 'team', workspaceMemberId: 'wm-1',
+        role: 'member', permissions: buildWorkspacePermissions({ role: 'member', lifecycleState: 'active' }) }),
     );
   });
 
@@ -3243,6 +3250,12 @@ describe('App project creation routing', () => {
     );
 
     render(<App />);
+    await waitFor(() => {
+      expect(mockedListProjects).toHaveBeenCalledWith(expect.objectContaining({
+        workspaceContext: expect.objectContaining({ workspaceId: 'ws-1', workspaceMemberId: 'wm-1' }),
+      }));
+      expect(screen.getByTestId('entry-projects-loading')).toHaveTextContent('false');
+    });
     await screen.findByTestId('entry-project-project-shared');
     fireEvent.click(screen.getByRole('button', { name: 'Open catalog project' }));
     await screen.findByTestId('project-view');
