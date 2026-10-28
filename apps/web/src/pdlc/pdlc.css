@@ -23,6 +23,7 @@
 .pdlc-studio-content > .workspace-shell,
 .pdlc-studio-content > .app { height: 100%; width: 100%; max-width: 100%; }
 html[data-pdlc] {
+  --workspace-files-surface: var(--color-surface);
   --workspace-file-tab-max-width: 240px;
   --workspace-file-tab-label-max-width: 200px;
   --bg: var(--color-surface);
@@ -56,3 +57,7 @@ html[data-pdlc] .viewer-toolbar { background: var(--bg-panel); }
 html[data-pdlc] .entry-main--scroll { --entry-content-surface: var(--color-surface-raised); }
 html[data-pdlc] .composer-input-editor [contenteditable='true'],
 html[data-pdlc] .composer-input-editor .composer-editable { color: var(--text); }
+html[data-pdlc] .chat-composer-fixed-layer .composer-shell:focus-within {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 20%, transparent);
+}

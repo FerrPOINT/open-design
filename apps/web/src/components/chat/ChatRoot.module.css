@@ -18,8 +18,10 @@
 /* Platform surfaces follow Base; standalone retains the upstream palette. */
 :global(html[data-pdlc]) .vars,
 :global(html[data-pdlc]) .root {
-  --chat-floating-card-bg: var(--bg-panel);
+  --chat-floating-card-bg: var(--bg);
   --chat-floating-card-text: var(--text-strong);
+  --chat-border-soft: var(--border-strong);
+  --chat-anim-ink: var(--text-strong);
   --chat-confirm-surface: var(--bg-panel);
   --chat-plan-current-text: var(--text-strong);
 }

@@ -700,7 +700,7 @@
   font-size: 13px;
   min-height: 320px;
   /* Plain pure-white surface — grid pattern removed. */
-  background-color: #fff;
+  background-color: var(--workspace-files-surface, #fff);
   /* Hosts the building preview's absolutely-positioned stage
      (DesignFilesBuildingState) while a run writes a page. */
   position: relative;
