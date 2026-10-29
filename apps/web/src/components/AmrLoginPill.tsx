@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
+import { isPdlcMode } from '../pdlc/config';
 import {
   cancelVelaLogin,
   fetchVelaLoginStatus,
@@ -280,7 +281,11 @@ export function AmrAccountControl({
 // AMR-specific login pill that lives as a sibling inside the installed
 // agent card. The pill polls `/api/integrations/vela/status` after a Sign-in
 // click until the daemon reports loggedIn=true.
-export function AmrLoginPill({
+export function AmrLoginPill(props: AmrLoginPillProps) {
+  return isPdlcMode() ? null : <StandaloneAmrLoginPill {...props} />;
+}
+
+function StandaloneAmrLoginPill({
   className,
   hideSignedOutStatus = false,
   hideSignedInStatus = false,

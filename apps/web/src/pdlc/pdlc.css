@@ -1,4 +1,5 @@
 @import 'tailwindcss/theme.css' layer(theme);
+@import '@pdlc/ui/tokens.css';
 @import 'tailwindcss/utilities.css' layer(utilities);
 @source '../../node_modules/@pdlc/ui/src';
 
@@ -6,15 +7,25 @@
 /* The product keeps its editor layout; Base owns header geometry and theme. */
 .pdlc-studio-shell {
   display: grid;
-  grid-template-rows: var(--shell-header-height, 60px) minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   height: 100dvh;
   min-width: 0;
   overflow: hidden;
 }
-.pdlc-studio-content { min-width: 0; min-height: 0; overflow: hidden; }
+/* Keep editor chrome below the platform's body-portalled menus. */
+.pdlc-studio-content {
+  min-width: 0; min-height: 0; overflow: hidden; isolation: isolate;
+  font-family: var(--sans);
+  font-size: var(--font-size-14, 14px);
+  font-weight: 600;
+  line-height: 125%;
+}
 .pdlc-studio-content > .workspace-shell,
 .pdlc-studio-content > .app { height: 100%; width: 100%; max-width: 100%; }
 html[data-pdlc] {
+  --workspace-files-surface: var(--color-surface);
+  --workspace-file-tab-max-width: 240px;
+  --workspace-file-tab-label-max-width: 200px;
   --bg: var(--color-surface);
   --bg-app: var(--color-surface);
   --bg-panel: var(--color-surface-raised);
@@ -26,6 +37,9 @@ html[data-pdlc] {
   --border-strong: var(--color-text-muted);
   --text: var(--color-text-primary);
   --text-strong: var(--color-text-primary);
+  --selected: var(--color-text-primary);
+  --select-ink: var(--color-text-primary);
+  --selected-soft: color-mix(in srgb, var(--color-text-primary) 12%, transparent);
   --text-muted: var(--color-text-secondary);
   --text-soft: var(--color-text-muted);
   --text-faint: var(--color-text-muted);
@@ -40,6 +54,31 @@ html[data-pdlc] {
   --accent-strong: var(--color-text-primary);
 }
 html[data-pdlc] .viewer-toolbar { background: var(--bg-panel); }
+/* Reuse the native chat collapse/focus controls; keep both panes mounted. */
+html[data-pdlc] .split[data-pdlc-narrow='true'][data-pdlc-pane='chat'] {
+  grid-template-columns: minmax(0, 1fr) 0 0 !important;
+}
+html[data-pdlc] .split[data-pdlc-narrow='true'][data-pdlc-pane='chat'] > .workspace,
+html[data-pdlc] .split[data-pdlc-narrow='true'] > .split-resize-handle { display: none; }
+.pdlc-inference-status { display: flex; gap: 12px; justify-content: space-between; align-items: center;
+  padding: 4px 12px; font-size: 12px; background: var(--color-surface-raised); color: var(--color-text-secondary); }
+.pdlc-inference-status button { font: inherit; color: var(--color-accent); background: transparent; border: 0; cursor: pointer; }
+.pdlc-tracker-picker { display: flex; min-width: 0; align-items: center; gap: 4px; flex-wrap: wrap; }
+html[data-pdlc] .inline-switcher__popover { width: min(340px, calc(100vw - 32px)); overflow-x: hidden; box-sizing: border-box; }
+html[data-pdlc] .inline-switcher__more { white-space: normal; width: 100%; }
+@media (max-width: 640px) {
+  html[data-pdlc] .platform-header { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); height: auto; gap: 4px; padding: 6px 8px; }
+  html[data-pdlc] .platform-header-leading { display: none; }
+  html[data-pdlc] .platform-header-services { min-width: 0; grid-column: 1; grid-row: 1; }
+  html[data-pdlc] .platform-header-actions { min-width: 0; grid-column: 2; grid-row: 1; justify-self: end; }
+  html[data-pdlc] .platform-header-context { min-width: 0; grid-column: 1 / -1; grid-row: 2; justify-self: start; }
+  html[data-pdlc] .platform-header button { max-width: 100%; }
+  .pdlc-inference-status { flex-wrap: wrap; gap: 4px; }
+}
 html[data-pdlc] .entry-main--scroll { --entry-content-surface: var(--color-surface-raised); }
 html[data-pdlc] .composer-input-editor [contenteditable='true'],
 html[data-pdlc] .composer-input-editor .composer-editable { color: var(--text); }
+html[data-pdlc] .chat-composer-fixed-layer .composer-shell:focus-within {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 20%, transparent);
+}

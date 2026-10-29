@@ -83,4 +83,12 @@ describe('Central Auth verification', () => {
     profileSubject = 'bob';
     await expect(verify(await sign())).rejects.toMatchObject({ status: 503 });
   });
+  it('uses private Auth transport while verifying the public issuer and admission', async () => {
+    const privateOrigin = issuer;
+    issuer = 'https://login.pdlc.example';
+    const verifier = createPdlcVerifier({ issuer, clientId: 'open-design', publicOrigin: 'https://studio.example',
+      hostOrigin: null, catalogUrl: null, applicationKey: 'open-design' }, privateOrigin);
+    expect((await verifier(await sign())).identity.subject).toBe('alice');
+    await expect(verifier(await sign({ iss: privateOrigin }))).rejects.toMatchObject({ status: 401 });
+  });
 });

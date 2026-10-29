@@ -205,7 +205,7 @@ describe('project file rename route', () => {
     const outside = mkdtempSync(path.join(tmpdir(), 'od-rename-outside-source-'));
     tempDirs.push(folder, outside);
     await writeFile(path.join(outside, 'secret.txt'), 'outside');
-    await symlink(outside, path.join(folder, 'linked'), 'dir');
+    await symlink(outside, path.join(folder, 'linked'), process.platform === 'win32' ? 'junction' : 'dir');
     const projectId = await importFolder(folder);
 
     const renamed = await renameFile(projectId, 'linked/secret.txt', 'renamed.txt');
@@ -220,7 +220,7 @@ describe('project file rename route', () => {
     tempDirs.push(folder, outside);
     await writeFile(path.join(folder, 'note.txt'), 'inside');
     await mkdir(path.join(outside, 'sink'));
-    await symlink(path.join(outside, 'sink'), path.join(folder, 'linked'), 'dir');
+    await symlink(path.join(outside, 'sink'), path.join(folder, 'linked'), process.platform === 'win32' ? 'junction' : 'dir');
     const projectId = await importFolder(folder);
 
     const renamed = await renameFile(projectId, 'note.txt', 'linked/note.txt');

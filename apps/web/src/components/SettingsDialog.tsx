@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { isPdlcMode } from '../pdlc/config';
 import type { CSSProperties, Dispatch, SetStateAction, JSX } from 'react';
 import { Button, VisuallyHidden } from '@open-design/components';
 import type {
@@ -4501,11 +4502,11 @@ export function SettingsDialog({
                   onClick={() => setMode('daemon')}
                   title={
                     daemonLive
-                      ? t('settings.modeDaemonHelp')
+                      ? isPdlcMode() ? (locale === 'ru' ? 'CLI выполняется на сервере OpenDesign' : 'CLI runs on the OpenDesign server') : t('settings.modeDaemonHelp')
                       : t('settings.modeDaemonOffline')
                   }
                 >
-                  <span className="seg-title">{t('settings.localCli')}</span>
+                  <span className="seg-title">{isPdlcMode() ? (locale === 'ru' ? 'CLI сервера' : 'Server CLI') : t('settings.localCli')}</span>
                   <span className="seg-meta">
                     {daemonLive
                       ? t('settings.modeDaemonInstalledMeta', { count: installedCount })
@@ -4527,7 +4528,7 @@ export function SettingsDialog({
                 </button>
               </div>
               </div>
-              {cfg.mode === 'daemon' && !amrCardSignedIn ? (
+              {!isPdlcMode() && cfg.mode === 'daemon' && !amrCardSignedIn ? (
                 // Only prompt to sign into OpenDesign Cloud when NOT already
                 // signed in — the AMR/vela session IS the cloud identity (one
                 // session drives both), so a logged-in user has nothing to do
@@ -4620,7 +4621,7 @@ export function SettingsDialog({
             <section className="settings-section">
               <div className="section-head">
                 <div>
-                  <p className="hint">{t('settings.codeAgentHint')}</p>
+                  <p className="hint">{isPdlcMode() ? (locale === 'ru' ? 'CLI установлен на сервере. Модель OpenCode настроена на сервере; проверка доступа не запускает генерацию.' : 'The CLI is installed on the server. The OpenCode model is configured on the server; the access check does not generate content.') : t('settings.codeAgentHint')}</p>
                 </div>
               </div>
               {initialAgentScanRunning ? (

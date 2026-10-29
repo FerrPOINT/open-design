@@ -7,13 +7,17 @@
 // result changes behavior must preserve failure as a typed error instead.
 
 import { coalescedGet, evictCoalescedGet } from '../lib/coalesced-get';
+import { selectedTrackerProject, trackerProjectQuery, trackerProjectHeaders } from '../pdlc/tracker-context';
+import { isPdlcMode } from '../pdlc/config';
 import { isDaemonProxyConnectionFailure } from '../runtime/daemon-proxy-failure';
 import { BackoffController, type BackoffOptions } from '../lib/backoff';
 import { markProjectCreatedByViewer } from '../collab/useProjectCollab';
 import {
   API_ERROR_CODES,
+  MESSAGES_STREAM_CONTENT_TYPE,
   isSameWorkspacePrincipal,
   type ApiErrorCode,
+  type ProjectDeleteShareResidual,
 } from '@open-design/contracts';
 import type {
   AppliedPluginSnapshot,
@@ -43,6 +47,7 @@ import type {
   WorkspaceProjectsResponse,
 } from '@open-design/contracts';
 import { randomUUID } from '../utils/uuid';
+import { readMessageStream } from './read-message-stream';
 import { markProjectDisplaySnapshotsDirty } from './project-display-cache';
 import {
   workspaceIdentityCacheKey,
@@ -311,8 +316,9 @@ export async function listProjects(options?: {
   // `listWorkspaceProjectSummaries` below and carries the full wire identity
   // plus the requested view.
   try {
-    return await coalescedGet('local-projects', async () => {
-      const resp = await fetch('/api/projects');
+    const query = trackerProjectQuery();
+    return await coalescedGet(`local-projects${query}`, async () => {
+      const resp = await fetch(`/api/projects${query}`);
       // Throw inside the coalesced run so a failed read is not cached — the next
       // caller/poll retries immediately (see coalesced-get.ts).
       if (!resp.ok) throw new Error(`projects ${resp.status}`);
@@ -749,6 +755,8 @@ export async function createProject(
     pendingPrompt?: string;
     metadata?: ProjectMetadata;
     conversationMode?: ChatSessionMode;
+    /** Optional caller-minted id for the seeded conversation (same handoff). */
+    conversationId?: string;
     // Plan §3.A1 / spec §11.5 — POST /api/projects accepts a pluginId
     // (or pre-applied snapshot id) to resolve and pin a plugin to the new
     // project. Used by the PluginLoopHome flow on Home.
@@ -768,6 +776,7 @@ export async function createProject(
   retryOptions: CreateProjectRetryOptions = {},
 ): Promise<{ project: Project; conversationId: string; appliedPluginSnapshotId?: string }> {
   const maxRetries = retryOptions.maxRetries ?? 3;
+  const trackerProjectId = isPdlcMode() ? selectedTrackerProject() : '';
   const sleep = retryOptions.sleep ?? defaultRetrySleep;
   const backoff = new BackoffController(
     retryOptions.backoff ?? DEFAULT_CREATE_PROJECT_RETRY_BACKOFF,
@@ -791,7 +800,9 @@ export async function createProject(
           'Content-Type': 'application/json',
           ...(input.workspaceContext ? workspaceProjectHeaders(input.workspaceContext) : {}),
         },
-        body: JSON.stringify({ id, ...omitWorkspaceContext(input) }),
+        body: JSON.stringify({ id, ...omitWorkspaceContext(input),
+          ...(trackerProjectId ? { metadata: { ...input.metadata, trackerProjectId } } : {}),
+        }),
       });
       if (resp.ok) {
         const created = (await resp.json()) as {
@@ -951,6 +962,7 @@ export async function importFolderProject(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...trackerProjectHeaders(),
       ...(workspaceContext ? workspaceProjectHeaders(workspaceContext) : {}),
     },
     body: JSON.stringify(input),
@@ -974,7 +986,7 @@ export async function importClaudeDesignZip(
   form.append('file', file);
   const resp = await fetch('/api/import/claude-design', {
     method: 'POST',
-    ...(workspaceContext ? { headers: workspaceProjectHeaders(workspaceContext) } : {}),
+    headers: { ...trackerProjectHeaders(), ...(workspaceContext ? workspaceProjectHeaders(workspaceContext) : {}) },
     body: form,
   });
   if (!resp.ok) {
@@ -1116,7 +1128,7 @@ export async function patchProject(
         currentWorkspaceAccountGeneration(),
       );
     } else {
-      evictCoalescedGet('local-projects');
+      evictCoalescedGet(`local-projects${trackerProjectQuery()}`);
     }
     return json.project;
   } catch {
@@ -1141,6 +1153,7 @@ export async function patchProject(
 export async function deleteProject(
   id: string,
   workspaceContext?: WorkspaceCollabContext | null,
+  onShareResiduals?: (rows: ReadonlyArray<ProjectDeleteShareResidual>) => void,
 ): Promise<true> {
   try {
     const resp = await fetch(`/api/projects/${encodeURIComponent(id)}`, {
@@ -1182,6 +1195,15 @@ export async function deleteProject(
         return true;
       }
       throw new ProjectDeleteError(message, resp.status, code);
+    }
+    // This response is the only delivery of orphaned share information. Hand it
+    // to the app-level queue before cache cleanup/navigation can remove its origin.
+    const payload: unknown = await resp.json().catch(() => null);
+    if (payload && typeof payload === 'object' && 'shareResiduals' in payload && Array.isArray(payload.shareResiduals)) {
+      const rows = payload.shareResiduals.filter((row): row is ProjectDeleteShareResidual =>
+        row && typeof row === 'object' && typeof row.filePath === 'string'
+        && typeof row.slug === 'string' && typeof row.retrying === 'boolean');
+      if (rows.length) onShareResiduals?.(rows.map(row => Object.freeze({ ...row })));
     }
     // Drop per-project browser caches once the project is gone server-side so
     // they do not accumulate in localStorage for the lifetime of the profile.
@@ -1457,16 +1479,18 @@ export async function listMessages(
   conversationId: string,
   workspaceContext?: WorkspaceCollabContext | null,
   signal?: AbortSignal,
+  onProgress?: () => void,
 ): Promise<ChatMessage[]> {
   try {
     const resp = await fetch(
       `/api/projects/${encodeURIComponent(projectId)}/conversations/${encodeURIComponent(conversationId)}/messages`,
-      workspaceContext || signal
-        ? {
-            ...(workspaceContext ? { headers: workspaceProjectHeaders(workspaceContext) } : {}),
-            ...(signal ? { signal } : {}),
-          }
-        : undefined,
+      {
+        headers: {
+          Accept: MESSAGES_STREAM_CONTENT_TYPE,
+          ...(workspaceContext ? workspaceProjectHeaders(workspaceContext) : {}),
+        },
+        ...(signal ? { signal } : {}),
+      },
     );
     if (!resp.ok) {
       const failure = await readProjectMessageListError(resp);
@@ -1476,6 +1500,9 @@ export async function listMessages(
         failure.code,
         failure.retryable,
       );
+    }
+    if (resp.headers.get('content-type')?.split(';')[0]?.trim() === MESSAGES_STREAM_CONTENT_TYPE) {
+      return await readMessageStream(resp, signal, onProgress);
     }
     const json = (await resp.json()) as { messages: ChatMessage[] };
     return json.messages ?? [];
@@ -2048,6 +2075,7 @@ export async function duplicatePluginAsProject(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...trackerProjectHeaders(),
         ...(workspaceContext ? workspaceProjectHeaders(workspaceContext) : {}),
       },
       body: JSON.stringify(input),

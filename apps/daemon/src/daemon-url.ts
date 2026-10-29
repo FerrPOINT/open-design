@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { rememberDaemonUrl } from './daemon-fetch.js';
 import { readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -37,21 +38,21 @@ export async function resolveDaemonUrl(
 ): Promise<string> {
   const env = options.env ?? process.env;
   const flagUrl = options.flagUrl ?? null;
-  if (flagUrl != null && flagUrl.length > 0) return flagUrl;
+  if (flagUrl != null && flagUrl.length > 0) return rememberDaemonUrl(flagUrl);
   const envUrl = env.OD_DAEMON_URL;
-  if (envUrl != null && envUrl.length > 0) return envUrl;
+  if (envUrl != null && envUrl.length > 0) return rememberDaemonUrl(envUrl);
   const discovered = await discoverDaemonUrlFromInheritedClient(
     env,
     options.timeoutMs ?? 800,
     options.connectInherited ?? SidecarFactory.connectInherited,
   );
-  if (discovered != null) return discovered;
+  if (discovered != null) return rememberDaemonUrl(discovered);
   const toolsDevUrl = await discoverDaemonUrlFromToolsDev(env, options.timeoutMs ?? 800);
-  if (toolsDevUrl != null) return toolsDevUrl;
+  if (toolsDevUrl != null) return rememberDaemonUrl(toolsDevUrl);
   if (options.allowLegacyDefault === false) {
     throw new Error("Open Design daemon could not be discovered. Open the app and refresh the MCP registration, or supply --daemon-url explicitly.");
   }
-  return DEFAULT_DAEMON_URL;
+  return rememberDaemonUrl(DEFAULT_DAEMON_URL);
 }
 
 async function discoverDaemonUrlFromInheritedClient(

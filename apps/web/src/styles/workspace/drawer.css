@@ -1687,7 +1687,7 @@
   line-height: 1;
   cursor: pointer;
   flex-shrink: 0;
-  max-width: 110px;
+  max-width: var(--workspace-file-tab-max-width, 110px);
   min-width: 0;
   color: var(--text-muted);
   transition: background 120ms var(--ease-out), color 120ms var(--ease-out);
@@ -1756,7 +1756,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 96px;
+  max-width: var(--workspace-file-tab-label-max-width, 96px);
   line-height: 1;
 }
 .ws-tab.has-meta {

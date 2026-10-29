@@ -28,6 +28,9 @@ upstream sandbox mode: перед установкой оператор опре
 | `OD_PDLC_PUBLIC_ORIGIN` | Собственный origin web/API OpenDesign |
 | `OD_PDLC_HOST_ORIGIN` | Необязательный origin persistent host Base |
 | `OD_PDLC_CATALOG_URL` | Необязательный публичный runtime catalog Admin |
+| `OD_PDLC_BRANDING_URL` | Необязательный published runtime branding Admin |
+| `OD_PDLC_AUTH_INTERNAL_ORIGIN` | Только сервер: private transport Central Auth; публичный issuer неизменен |
+| `OD_PDLC_TRACKER_URL` | Только сервер: явный origin Task Tracker для каталога проектов текущего пользователя |
 
 HTTPS обязателен, кроме loopback для локальной проверки. Частичная конфигурация
 отклоняется при старте; отсутствие или пустые значения всех полей сохраняют
@@ -38,7 +41,9 @@ Frontend получает только публичную конфигураци
 [Daemon data directory contract](../AGENTS.md#daemon-data-directory-contract).
 
 Разработка ведётся в отдельной ветке текущего workspace. AI Hub, production,
-общие установленные stacks, их данные и конфигурация не изменяются.
+остальные установленные приложения, их данные и конфигурация не изменяются.
+Локальная установка OpenDesign в `pdlc3` выполняется отдельной operator-процедурой;
+это не production deployment.
 
 ## Регистрация в PDLC
 
@@ -52,8 +57,8 @@ Frontend получает только публичную конфигураци
 | Central Auth | Добавить `{ "key": "open-design", "label": "OpenDesign" }` в `AUTH_ADDITIONAL_TOKEN_SERVICES_JSON`, сохранив существующий каталог |
 | Central Auth / Admin | При включённом application access предоставить нужным пользователям доступ `open-design` штатным управлением; роль из JWT не заменяет свежий proof |
 | Admin | Создать и одобрить declaration `open-design` с `health.read`, `ui.render`, проверенным integration URL и `public_ui_url`; каталог не содержит credentials |
-| Base host | Добавить service key `open-design`, собственный origin и свободный публичный path в существующую topology configuration |
-| OpenDesign | Задать пять runtime-переменных выше; для полного переключения указать host и catalog выбранного окружения |
+| Base host | Только для embedding: добавить приложение в существующую topology; отдельный host для standalone-студии не нужен |
+| OpenDesign | Задать issuer/client/public origin и настоящий Admin catalog; branding и embedding host необязательны |
 
 [Пример публичных записей](../deploy/pdlc-registration.example.json) показывает
 форму owner-контрактов, а не готовую конфигурацию установки. Заменить example
@@ -65,15 +70,15 @@ origins, проверить свободный path и объединить за
 использует его фиксированный `GET /health`; daemon публикует этот probe тем
 же обработчиком, что и прежний `/api/health`, без SPA fallback.
 
-Регистрация метаданных в каталоге Auth не подтверждает поддержку PAT самим
-OpenDesign: этот режим принимает браузерный JWT с проверенным SID. Machine
-delegation не выдаётся автоматически из факта существования service key.
+Регистрация метаданных в каталоге Auth не выдаёт токен и не заменяет admission.
+Браузер использует JWT с настоящим SID; PAT проходит отдельную introspection
+без фиктивной браузерной сессии. Подробности — в разделе CLI и MCP ниже.
 
 Нужен совместимый Central Auth с browser SID, `/auth/access` и CORS для
 зарегистрированного callback origin. Наличие `/health` и JWKS у старой версии
 Auth не доказывает этот контракт. Отсутствующий owner endpoint закрывает доступ
-с `503`; legacy shared token не становится обходом. Обновление установленного
-Auth выполняется отдельной согласованной поставкой, не этой задачей исходников.
+с `503`; legacy shared token не становится обходом. Для legacy Auth совместимость
+поставляется отдельным узким backport с сохранением БД, signing keys и SDK pin.
 
 ## Поведение авторизации
 
@@ -137,7 +142,182 @@ diagnostics. Canvas/диалоги проверяются отдельно на 
 
 ## Состояние
 
-Реализация опубликована в [PR #1](https://github.com/FerrPOINT/open-design/pull/1).
-[Протокол проверки](pdlc-acceptance.md) разделяет source checks, собственный
-живой контур и приёмку persistent host. Установка и приёмка общего runtime
-не выполнялись; source PR не является подтверждением deployment.
+Первоначальная интеграция — [PR #1](https://github.com/FerrPOINT/open-design/pull/1),
+текущая доработка — [PR #2](https://github.com/FerrPOINT/open-design/pull/2).
+[Исторический протокол](pdlc-acceptance.md) относится к отдельному QA-контуру.
+[Приёмка установленной студии](pdlc-installed-acceptance.md) фиксируется отдельно;
+source PR не заменяет её.
+
+## Авторизованный CLI и MCP
+
+Команды ниже установлены и проверены в PDLC3 на runtime `266bad1c`.
+Точные версии, backup/restore и границы проверки — в
+[протоколе приёмки](pdlc-native-ui-acceptance.md).
+
+Существующий `od` и его `--daemon-url` сохраняются. Для установленной студии
+оператор передаёт личный Central Auth PAT через `PDLC_API_TOKEN`, без собственного
+login или credential store. Не записывать значение токена в команды, историю
+или документы. Пример вызова с уже установленной переменной окружения:
+
+```sh
+corepack pnpm exec od status --json --daemon-url http://127.0.0.3:8193
+corepack pnpm exec od tracker projects --json --daemon-url http://127.0.0.3:8193
+corepack pnpm exec od project list --json --daemon-url http://127.0.0.3:8193
+corepack pnpm exec od project list --tracker-project none --json --daemon-url http://127.0.0.3:8193
+```
+
+Команды выполняются из корня checkout нашего форка после штатной сборки daemon.
+Адрес выше относится только к локальной установке PDLC3; для другой установки
+используют её адрес через `--daemon-url` либо `OD_DAEMON_URL`.
+Глобальная установка и изменение PATH не требуются. Запуск `od` без подкоманды
+запускает локальную студию, поэтому для управления общей установкой используют
+явные подкоманды. `od` управляет содержимым студии; OpenCode выполняет генерацию
+на сервере, а существующий оператор PDLC управляет установкой и backup/restore.
+
+Фильтр `--tracker-project` принимает UUID или `none` («Без проекта»); отсутствие
+флага сохраняет полный доступный список. MCP `list_projects` принимает такой же
+необязательный `trackerProjectId`, а `create_project` — UUID для назначения
+привязки через metadata. Без него новая работа остаётся «Без проекта».
+При назначении нужен также текущий доступ к проекту и право чтения Tracker;
+токен другого сервиса не подставляется. Фильтр не создаёт ACL.
+
+`od tracker projects` возвращает UUID, ключ и название из настоящего каталога
+Tracker через `GET /api/pdlc/projects`. Принимаются браузерная сессия или личный
+PAT с правом чтения OpenDesign; Tracker отдельно проверяет этот же credential.
+Пустой каталог допустим: работы можно создавать в разделе «Без проекта».
+UUID Tracker используется только для классификации; `projectId` в командах
+файлов, бесед и запусков — ID **работы OpenDesign** из `od project list`.
+
+После задания `OD_DAEMON_URL` и `PDLC_API_TOKEN` в окружении доступен весь цикл
+работы с существующим HTML или исходниками React. Ниже `WORK_ID`, `CONVERSATION_ID`
+и `RUN_ID` заменяют ID из ответов предыдущих команд; файл `metadata.json`
+содержит объект metadata с необязательным `trackerProjectId`:
+
+```sh
+corepack pnpm exec od project create --name "Новая работа" --metadata-json metadata.json --json
+corepack pnpm exec od files list WORK_ID --json
+corepack pnpm exec od files read WORK_ID index.html
+corepack pnpm exec od files write WORK_ID index.html --json < updated.html
+corepack pnpm exec od files rename WORK_ID index.html ready.html --json
+corepack pnpm exec od files rename WORK_ID ready.html index.html --json
+corepack pnpm exec od conversation new WORK_ID --title "Доработка" --json
+corepack pnpm exec od conversation info CONVERSATION_ID --json
+corepack pnpm exec od conversation messages CONVERSATION_ID --json
+corepack pnpm exec od conversation rename CONVERSATION_ID --title "Новый заголовок" --json
+corepack pnpm exec od run start --project WORK_ID --conversation CONVERSATION_ID --prompt-file prompt.txt --json
+corepack pnpm exec od run watch RUN_ID
+corepack pnpm exec od run info RUN_ID --json
+corepack pnpm exec od run result-package RUN_ID --json
+corepack pnpm exec od files versions WORK_ID index.html --json
+```
+
+Пример использует shell с перенаправлением stdin. В PowerShell содержимое файла
+можно передать через `Get-Content -Raw -Encoding utf8 updated.html | corepack pnpm exec od files write WORK_ID index.html --json`;
+переданный текст включает завершающий перевод строки pipeline. Для передачи
+локального файла побайтово использовать `files upload WORK_ID updated.html --as index.html`.
+
+История возвращает штатный `{messages}` без изменения сохранённых сообщений.
+`GET /api/conversations/:id` возвращает `{conversation}` после проверки доступа
+к родительской работе; служебные беседы комментариев скрыты. CLI использует этот
+маршрут для разрешения родителя без перебора каталога, затем вызывает существующие
+API бесед. Все запросы сохраняют явный Workspace-контекст, если он был задан.
+
+Новое задание ИИ запускается через `run start` с тем же `--conversation`.
+`run cancel RUN_ID` останавливает запуск; `conversation delete CONVERSATION_ID`
+удаляет беседу и штатно останавливает её активные запуски. Прямые изменения
+исходников выполняются через `files write/upload`, переименование — через
+существующий API файлов с его проверками конфликтов и путей. Версии HTML
+читаются и восстанавливаются существующими `files version-*`.
+
+Серверный OpenCode не поддерживает `run steer` во время выполнения:
+команда возвращает `RUN_STEERING_UNSUPPORTED`. `run continue` разрешён только
+для действительно resumable-запусков. Эти отказы не перезапускают генерацию.
+Чтение и изменение исходников не требуют Chromium или отдельного рендера.
+
+Для CLI create существующий `--metadata-json <файл|->` принимает JSON-объект,
+например `{"kind":"prototype","trackerProjectId":"<Tracker-UUID>"}`.
+Ошибка чтения, JSON, null или массив дают `CLI_USAGE`, exit 2 до создания работы.
+При `--json` HTTP-ошибки возвращаются в stderr как JSON; stdout предназначен для
+успешного результата. Ошибки не требуют отдельного login или хранилища токенов.
+
+PAT проверяется через `/auth/tokens/introspect?include_lifetime=true`: текущий
+допуск `open-design`, срок действия и scopes. Чтение требует `open-design:read`,
+изменение — `open-design:write`. MCP использует те же защищённые HTTP операции;
+локальные `initialize` и перечисление инструментов сами по себе не дают доступа.
+Успех CLI возвращает exit 0; отказ авторизации — structured JSON error и exit 1.
+Существующие специальные exit codes upstream сохраняются.
+Узкий server-issued tool token имеет приоритет над PAT и не расширяет свои права.
+
+HTTP транспорт передаёт PAT только явно выбранному daemon target. Перенаправление
+credentials запрещено; ошибки сети не воспроизводят URL или секрет. Timeout до
+получения заголовков — 30 секунд; открытые потоки контролируются серверным сроком
+owner proof. Авторизация пересматривается на каждом запросе и до deadline во
+время потока/фоновой генерации. Жёсткий deadline продолжает действовать, пока
+ответ Auth ожидается; поздний ответ не возобновляет закрытую операцию.
+Отзыв прекращает дальнейшую работу; завершённые
+файлы общей студии сохраняются. `401`, `403`, `429` и `503` различаются.
+
+## Общий интерфейс
+
+`PlatformProvider` получает published branding Admin. Отсутствие опубликованной
+ревизии сохраняет штатный Base fallback. Выбранная тема применяется существующим
+prepaint-механизмом до React. Язык шапки следует языку OpenDesign, с fallback
+Base для остальных локалей. По уточнению пользователя от 2026-10-27 интеграция
+ограничена палитрой, переключением приложений, общей авторизацией и выбором
+проекта Task Tracker в верхней панели. Кнопки, поля, селекты, диалоги, уведомления,
+настройки и предметная компоновка остаются исходными OpenDesign в обоих режимах.
+Массовая замена продуктовых controls на Base отменена.
+
+Каталог проектов поступает только из `GET Task Tracker /api/v1/projects` через
+защищённый same-origin `GET /api/pdlc/projects`. Daemon передаёт browser bearer
+текущего пользователя по явному installation transport, без service credential,
+перенаправлений и собственного каталога. Tracker применяет свои права. Ошибка
+или пустой каталог не подменяется проектами студии. Выбор хранится в текущей
+вкладке отдельно для subject. Новая работа получает необязательный
+`metadata.trackerProjectId`, проверенный по каталогу Tracker от текущего
+пользователя. Это классификация общей студии, не grant и не ACL. Обычный
+metadata patch сохраняет привязку; перенос между проектами не поддержан.
+Копия работы наследует привязку, импорт и создание из шаблона получают выбранную.
+Пути импорта/шаблона передают её заголовком `X-PDLC-Tracker-Project`;
+обычный create и CLI используют metadata (`od project create --metadata-json`).
+PAT для назначения должен иметь также требуемый Tracker доступ; сервисного
+токена и расширения browser-only каталога для PAT не вводится.
+
+`GET /api/projects?trackerProjectId=<UUID>` фильтрует по привязке;
+`trackerProjectId=none` возвращает работы без неё. Без параметра API сохраняет
+прежнее поведение. Web использует один контекст для списка, недавних работ
+и поиска. Старые работы остаются «Без проекта», где разрешено создание и при
+пустом каталоге. Deep link синхронизирует шапку с работой, смена выбора открывает
+другой список после штатной проверки несохранённых изменений. Недоступность
+Tracker не удаляет файлы. Legacy Tracker v1 не объявляется ProjectAccessV2.
+
+## Поставка и восстановление
+
+Штатная поставка использует один образ форка с OCI source/revision и immutable
+image ID, отдельный постоянный том, существующую сеть и loopback-порт установки.
+Правила daemon data root определены только в [AGENTS.md](../AGENTS.md#daemon-data-directory-contract).
+
+Порядок: квалифицировать Base operator → собрать и проверить форк → подготовить
+закрытый installation request → добавить OIDC/application catalogs с сохранением
+существующих записей → установить optional service → одобрить декларацию Admin
+с `health.read` и `ui.render` → проверить CLI и IAB. QA peer не устанавливается.
+
+Использовать существующий `pdlc_operator` с явными `--root` и `--installed`.
+Команды `Start`, `Stop`, `Status`, `Logs` направляются только в выбранный сервис.
+`BackupData --output` останавливает только OpenDesign, архивирует согласованные
+файлы и возвращает сервис. `RestoreData --archive --target-volume` восстанавливает
+только в новый изолированный том и сравнивает содержимое, права и владельцев.
+Архив содержит проекты и может содержать секреты upstream; хранить его приватно.
+Полный legacy backup не заменяет эту явную файловую копию optional-приложения.
+
+Обновлять только OpenDesign через operator image/CAS plan, сохраняя прежний image,
+точную конфигурацию и совместимую копию данных. Неудачный первый запуск возвращает
+исходный sealed bundle; неудачное обновление возвращает предыдущую конфигурацию
+и image pointer, оставляя сервис остановленным. После проверки journal и
+совместимости данных оператор выполняет scoped `Start`. До остановки operator
+удерживает старый и новый образы content-addressed тегами; сборочный revision tag
+не переиспользуется для следующей версии. Данные автоматически не удаляются
+и не перезаписываются.
+Для несовместимой миграции требуется отдельное восстановление в новый том.
+Source checks, image build, установка и пользовательская приёмка фиксируются
+отдельно в [installed acceptance](pdlc-installed-acceptance.md).

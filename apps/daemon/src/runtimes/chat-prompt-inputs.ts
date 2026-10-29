@@ -347,6 +347,7 @@ export function resolveChatExtraAllowedDirs({
   designSystemsDir,
   linkedDirs = [],
   activeSkillDirs = [],
+  strategyProfileDir,
   existsSync = fs.existsSync,
 }: {
   agentId?: string | null;
@@ -354,6 +355,7 @@ export function resolveChatExtraAllowedDirs({
   designSystemsDir?: string | null;
   linkedDirs?: Array<string | null | undefined>;
   activeSkillDirs?: Array<string | null | undefined>;
+  strategyProfileDir?: string | null;
   existsSync?: (path: string) => boolean;
 }): string[] {
   const isCodex =
@@ -365,6 +367,7 @@ export function resolveChatExtraAllowedDirs({
         designSystemsDir,
         ...(Array.isArray(linkedDirs) ? linkedDirs : []),
         ...(Array.isArray(activeSkillDirs) ? activeSkillDirs : []),
+        strategyProfileDir,
       ];
   return Array.from(
     new Set(

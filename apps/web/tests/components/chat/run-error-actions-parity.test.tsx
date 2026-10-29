@@ -55,6 +55,7 @@ vi.mock('../../../src/analytics/events', async (importOriginal) => {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  delete window.__OD_PDLC_CONFIG__;
 });
 
 /** Compare actual rendered Button contracts, not ChatPane variable names or JSX text. */
@@ -91,6 +92,14 @@ function expectSharedSmallButton(element: HTMLElement, fingerprint: string[]): v
 }
 
 describe('失败卡三颗按钮同壳', () => {
+  it('keeps log export and omits vendor Cloud/support actions in PDLC', () => {
+    window.__OD_PDLC_CONFIG__ = { issuer: 'https://auth.example', clientId: 'open-design',
+      publicOrigin: 'https://design.example', applicationKey: 'open-design', hostOrigin: null, catalogUrl: null };
+    renderFailure('claude');
+    expect(screen.queryByTestId('chat-error-switch-to-cloud')).toBeNull();
+    expect(screen.queryByTestId('chat-error-contact-support')).toBeNull();
+    expect(screen.getByTestId('chat-error-export-logs')).toBeVisible();
+  });
   it('共享 Button 的实际小尺寸类名指纹可用于比较', () => {
     const fp = buttonFingerprint();
     expect(fp.length).toBeGreaterThan(0);

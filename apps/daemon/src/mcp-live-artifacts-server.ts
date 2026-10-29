@@ -1,4 +1,5 @@
 import readline from 'node:readline';
+import { daemonFetch as fetch, rememberDaemonUrl } from './daemon-fetch.js';
 
 type JsonObject = Record<string, unknown>;
 
@@ -112,7 +113,7 @@ export function createLiveArtifactsMcpTools(): McpTool[] {
 function daemonUrl(): URL {
   const rawUrl = process.env.OD_DAEMON_URL;
   if (!rawUrl) throw new Error('OD_DAEMON_URL is required');
-  const url = new URL(rawUrl);
+  const url = new URL(rememberDaemonUrl(rawUrl));
   url.pathname = url.pathname.replace(/\/+$/u, '');
   url.search = '';
   url.hash = '';
@@ -121,8 +122,8 @@ function daemonUrl(): URL {
 
 function toolToken(): string {
   const token = process.env.OD_TOOL_TOKEN;
-  if (!token) throw new Error('OD_TOOL_TOKEN is required');
-  return token;
+  if (!token && !process.env.PDLC_API_TOKEN) throw new Error('OD_TOOL_TOKEN or PDLC_API_TOKEN is required');
+  return token ?? process.env.PDLC_API_TOKEN!;
 }
 
 function endpoint(baseUrl: URL, pathname: string): string {

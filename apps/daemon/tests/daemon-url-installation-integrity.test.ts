@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
-import ts from "typescript";
+import { transformSync } from "esbuild";
 import { beforeAll, describe, expect, it } from "vitest";
 
 const execFileAsync = promisify(execFile);
@@ -12,10 +12,10 @@ const daemonRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".
 let compiledResolver: string;
 
 beforeAll(async () => {
-  compiledResolver = ts.transpileModule(
+  compiledResolver = transformSync(
     await fs.readFile(path.join(daemonRoot, "src/daemon-url.ts"), "utf8"),
-    { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } },
-  ).outputText;
+    { loader: "ts", format: "esm", target: "es2022" },
+  ).code;
 });
 
 type Layout = "mac" | "payload" | "source" | "dist";
@@ -40,6 +40,15 @@ async function runDiscovery(options: {
       : "prebundled/daemon/chunks/discovery.mjs");
     await fs.mkdir(path.dirname(modulePath), { recursive: true });
     await fs.writeFile(modulePath, compiledResolver);
+    for (const relative of ['daemon-fetch', 'http/loopback-url']) {
+      const dependency = transformSync(
+        await fs.readFile(path.join(daemonRoot, `src/${relative}.ts`), 'utf8'),
+        { loader: 'ts', format: 'esm', target: 'es2022' },
+      ).code;
+      const destination = path.join(path.dirname(modulePath), `${relative}.js`);
+      await fs.mkdir(path.dirname(destination), { recursive: true });
+      await fs.writeFile(destination, dependency);
+    }
     // Production dependencies are read through a link; no package manager is run.
     await fs.symlink(path.join(daemonRoot, "node_modules"), path.join(root, "node_modules"), "junction");
     await fs.writeFile(path.join(root, "package.json"), JSON.stringify({ name: "open-design", type: "module" }));

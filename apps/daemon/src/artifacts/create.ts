@@ -119,3 +119,4 @@ export async function postCreateArtifactRequest(args: {
   }
   return body;
 }
+import { daemonFetch as fetch } from '../daemon-fetch.js';

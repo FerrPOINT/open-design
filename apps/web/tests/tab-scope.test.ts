@@ -35,6 +35,17 @@ function derive(
 }
 
 describe('deriveTabIdentityScope', () => {
+  it('partitions PDLC tabs by the confirmed account without waiting for disabled Cloud identity', () => {
+    const unresolvedCloud = { amrLoginStatus: null, workspaceContext: null, workspaceContextLoading: true };
+    const alice = derive({ ...unresolvedCloud, platformSubject: 'alice' });
+    expect(alice.scopeKey).toBe('pdlc:alice::none');
+    const bob = derive({ ...unresolvedCloud, platformSubject: 'bob',
+      previousAccountBucket: alice.nextAccountBucket, previousWorkspaceBucket: 'old-cloud-workspace' });
+    expect(bob.scopeKey).toBe('pdlc:bob::none');
+    expect(bob.nextWorkspaceBucket).toBe('none');
+    expect(derive(unresolvedCloud).scopeKey).toBeNull();
+    expect(derive({ ...unresolvedCloud, platformSubject: 'alice::team' }).nextAccountBucket).toBe('pdlc:alice%3A%3Ateam');
+  });
   it('reports scopeKey null while the login status has not resolved yet', () => {
     const result = derive({ amrLoginStatus: null, workspaceContext: null });
     expect(result.scopeKey).toBeNull();

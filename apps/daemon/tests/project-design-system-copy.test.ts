@@ -1,9 +1,15 @@
 import type { Server } from 'node:http';
-import { chmod, mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { register } from 'prom-client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { readProjectFile } from '../src/projects.js';
+
+vi.mock('../src/projects.js', async importOriginal => {
+  const actual = await importOriginal<typeof import('../src/projects.js')>();
+  return { ...actual, readProjectFile: vi.fn(actual.readProjectFile) };
+});
 
 type StartedServer = {
   url: string;
@@ -23,6 +29,8 @@ let serverModule: ServerModule | null = null;
 describe('project design-system copy route', () => {
   afterEach(async () => {
     await stopServer();
+    (await import('../src/db.js')).closeDatabase();
+    vi.mocked(readProjectFile).mockImplementation((await vi.importActual<typeof import('../src/projects.js')>('../src/projects.js')).readProjectFile);
     register.clear();
     if (dataDir) await rm(dataDir, { recursive: true, force: true });
     dataDir = null;
@@ -126,7 +134,11 @@ describe('project design-system copy route', () => {
       name: 'refs/unreadable.md',
       content: '# Hidden evidence\nThis file must not be silently skipped.',
     });
-    await chmod(join(dataDir, 'projects', sourceId, 'refs', 'unreadable.md'), 0o000);
+    const actual = await vi.importActual<typeof import('../src/projects.js')>('../src/projects.js');
+    vi.mocked(readProjectFile).mockImplementation((...args) => {
+      if (args[2] === 'refs/unreadable.md') throw new Error('Cannot read refs/unreadable.md');
+      return actual.readProjectFile(...args);
+    });
 
     const response = await fetch(`${started.url}/api/projects/${sourceId}/design-system-copy`, {
       method: 'POST',

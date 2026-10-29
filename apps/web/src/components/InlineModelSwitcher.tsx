@@ -8,6 +8,7 @@
 // upward through the same callbacks `AvatarMenu` already uses, so the
 // switcher inherits autosave + daemon sync without re-implementing it.
 
+import { usePdlcInference } from '../pdlc/InferenceAccess';
 import {
   useCallback,
   useEffect,
@@ -752,6 +753,11 @@ export function InlineModelSwitcher({
     if (currentAgent?.id !== 'amr') return models;
     return orderModelOptionsByAvailability(models);
   }, [currentAgent?.id, currentAgentModels]);
+  const hubAccess = usePdlcInference();
+  const managedModel = hubAccess?.model;
+  const displayAgentModels = useMemo(() => inlineAgentModelOptions.map(model =>
+    managedModel && model.id === `open-design-byok/${managedModel}` ? { ...model, label: managedModel } : model),
+    [inlineAgentModelOptions, managedModel]);
 
   /**
    * The ONLY path from a model row to `onAgentModelChange` in this component.
@@ -781,11 +787,11 @@ export function InlineModelSwitcher({
    */
   const compactModelRows = useMemo(
     () =>
-      inlineAgentModelOptions.map((model) => ({
+      displayAgentModels.map((model) => ({
         model,
         selectable: agentModelIsSelectable(currentAgent, model.id),
       })),
-    [currentAgent, inlineAgentModelOptions],
+    [currentAgent, displayAgentModels],
   );
 
   // The compact list caps at six visible rows and scrolls, so a longer catalog
@@ -1093,7 +1099,7 @@ export function InlineModelSwitcher({
   // (`claude-fable-5` → `fable-5`); the aria-label/tooltip above keep the full
   // name, so the company stays available to anyone who needs it spelled out.
   const chipModelName =
-    config.mode === 'daemon' && currentModelId
+    managedModel && currentModelId === `open-design-byok/${managedModel}` ? managedModel : config.mode === 'daemon' && currentModelId
       ? modelVersionLabel(currentModelId, chipModel)
       : chipModel;
   // Brand mark for that same model. `default` is the agent's own pick rather
@@ -1441,7 +1447,7 @@ export function InlineModelSwitcher({
                           /* A long catalog ellipsises these rows and many
                              share a prefix, so the full model name must stay
                              readable on hover. A locked row keeps its reason. */
-                          title={lockedHint ?? m.label}
+                          title={lockedHint ?? (managedModel ? m.id || m.label : m.label)}
                           className={
                             'inline-switcher__agent' +
                             (active ? ' is-active' : '') +
@@ -1717,7 +1723,7 @@ export function InlineModelSwitcher({
                     searchPlaceholder={t('designs.searchPlaceholder')}
                     getPopoverBoundary={getModelPopoverBoundary}
                     aria-label={t('inlineSwitcher.modelLabel')}
-                    models={inlineAgentModelOptions}
+                    models={displayAgentModels}
                     // Only AMR's catalog genuinely spans multiple model
                     // vendors — every other agent's model list is one
                     // provider's own ids (o1/o3/o4-mini alongside gpt-*,

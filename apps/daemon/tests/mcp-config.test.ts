@@ -431,12 +431,12 @@ describe('buildOpenCodeMcpConfigContent', () => {
 
     expect(parsed.mcp).toBeUndefined();
     expect(parsed.permission?.external_directory).toEqual({
-      '/tmp/od-project': 'allow',
-      '/tmp/od-project/*': 'allow',
-      '/tmp/od-project/**': 'allow',
-      '/tmp/od-skills': 'allow',
-      '/tmp/od-skills/*': 'allow',
-      '/tmp/od-skills/**': 'allow',
+      [path.resolve('/tmp/od-project')]: 'allow',
+      [path.join(path.resolve('/tmp/od-project'), '*')]: 'allow',
+      [path.join(path.resolve('/tmp/od-project'), '**')]: 'allow',
+      [path.resolve('/tmp/od-skills')]: 'allow',
+      [path.join(path.resolve('/tmp/od-skills'), '*')]: 'allow',
+      [path.join(path.resolve('/tmp/od-skills'), '**')]: 'allow',
     });
   });
 
@@ -469,9 +469,9 @@ describe('buildOpenCodeMcpConfigContent', () => {
       enabled: true,
     });
     expect(parsed.permission?.external_directory).toMatchObject({
-      '/tmp/od-project': 'allow',
-      '/tmp/od-project/*': 'allow',
-      '/tmp/od-project/**': 'allow',
+      [path.resolve('/tmp/od-project')]: 'allow',
+      [path.join(path.resolve('/tmp/od-project'), '*')]: 'allow',
+      [path.join(path.resolve('/tmp/od-project'), '**')]: 'allow',
     });
   });
 
@@ -514,7 +514,7 @@ describe('buildOpenCodeMcpConfigContent', () => {
       npm: '@ai-sdk/openai-compatible',
     });
     expect(parsed.mcp?.['basic-memory']).toBeTruthy();
-    expect(parsed.permission?.external_directory?.['/tmp/od-project']).toBe('allow');
+    expect(parsed.permission?.external_directory?.[path.resolve('/tmp/od-project')]).toBe('allow');
   });
 
   it('serialises a stdio server to OpenCode local schema (type=local, command=[cmd,...args])', () => {
@@ -696,12 +696,12 @@ describe('buildOpenCodeMcpConfigContent', () => {
 });
 
 describe('isManagedProjectCwd', () => {
-  const projectsDir = '/abs/.od/projects';
+  const projectsDir = path.resolve('/abs/.od/projects');
 
   it('accepts a real per-project subdir', () => {
-    expect(isManagedProjectCwd('/abs/.od/projects/abc', projectsDir)).toBe(true);
+    expect(isManagedProjectCwd(path.join(projectsDir, 'abc'), projectsDir)).toBe(true);
     expect(
-      isManagedProjectCwd('/abs/.od/projects/abc/sub', projectsDir),
+      isManagedProjectCwd(path.join(projectsDir, 'abc', 'sub'), projectsDir),
     ).toBe(true);
   });
 

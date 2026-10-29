@@ -91,6 +91,18 @@ function externalDirectoryFor(allowedDirectories: string[]): Record<string, stri
 }
 
 describe('run-scoped external_directory allowlist — skill roots', () => {
+  it('permits the shipped strategy profiles without exposing adjacent plugin directories', () => {
+    const profiles = path.join(REPO_ROOT, 'plugins/_official/scenarios/od-next-strategy/assets/task-profiles');
+    const extra = resolveChatExtraAllowedDirs({ agentId: 'opencode', strategyProfileDir: profiles });
+    const permissions = externalDirectoryFor([PROJECT_CWD, ...extra]);
+    for (const name of ['prototype.md', 'discovery.md']) {
+      const file = path.join(profiles, name);
+      expect(existsSync(file)).toBe(true);
+      expect(allowsRead(permissions, file)).toBe(true);
+    }
+    expect(allowsRead(permissions, path.join(path.dirname(profiles), 'unrelated/file.md'))).toBe(false);
+    expect(resolveChatExtraAllowedDirs({ agentId: 'codex', strategyProfileDir: profiles })).toEqual([]);
+  });
   it('ships the web-prototype assets its manifest declares', () => {
     const declared = declaredAssetPaths(bundledPluginRecord());
 

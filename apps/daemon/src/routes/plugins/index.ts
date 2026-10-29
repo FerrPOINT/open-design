@@ -1,4 +1,5 @@
 import type { Express, NextFunction, Request, RequestHandler, Response } from 'express';
+import { validateNewTrackerBinding } from '../../http/pdlc-project-binding.js';
 import type {
   InstalledPluginRecord,
   PluginDuplicateProjectRequest,
@@ -703,6 +704,8 @@ export function registerPluginRoutes(app: Express, deps: RegisterPluginRoutesDep
     let cleanupProjectId: string | null = null;
     let insertedProject = false;
     try {
+      const trackerProjectId = res.locals.pdlc ? req.get('X-PDLC-Tracker-Project') : undefined;
+      if (!await validateNewTrackerBinding(res, trackerProjectId)) return;
       const pluginId = Array.isArray(req.params.id) ? req.params.id[0] ?? '' : req.params.id ?? '';
       const authority = await resolveWorkspaceAuthority(req, res);
       if (authority === undefined) return;
@@ -741,6 +744,7 @@ export function registerPluginRoutes(app: Express, deps: RegisterPluginRoutesDep
         // to match the viewer's heuristic; fixed-canvas/vertical deck examples
         // then opened without slide chrome or a thumbnail rail.
         kind: duplicatedProjectKind(plugin),
+        ...(trackerProjectId ? { trackerProjectId } : {}),
         templateId: `plugin:${plugin.id}`,
         templateLabel: plugin.title || plugin.id,
         duplicatedFromPluginId: plugin.id,

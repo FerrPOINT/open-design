@@ -5,7 +5,6 @@ import { AnalyticsProvider } from '../src/analytics/provider';
 import '@excalidraw/excalidraw/index.css';
 import '../src/index.css';
 import '../src/styles/home/index.css';
-import '@pdlc/ui/tokens.css';
 import '../src/pdlc/pdlc.css';
 // These hosts render from the client-only App entry. Keep their layout CSS in
 // the root route stylesheet so Turbopack does not leave the lazy chunk as a

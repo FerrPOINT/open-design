@@ -1,5 +1,6 @@
 import type { Express } from 'express';
-import { type ChatSessionMode } from '@open-design/contracts';
+import { MESSAGES_STREAM_CONTENT_TYPE, type ChatMessage, type ChatSessionMode, type ConversationResponse } from '@open-design/contracts';
+import { streamMessages } from '../../http/message-stream.js';
 import { readAnalyticsContext } from '../../analytics.js';
 import { nextForkedConversationTitle } from '../../conversation-fork-title.js';
 import { backfillBrandExtractionTranscriptForProject } from '../../brands/index.js';
@@ -131,6 +132,15 @@ export function registerProjectConversationRoutes(app: Express, ctx: RegisterPro
   };
 
   // ---- Conversations --------------------------------------------------------
+
+  app.get('/api/conversations/:id', async (req, res) => {
+    const conversation = getConversation(db, req.params.id);
+    if (!conversation || isProjectCommentAnchorConversationId(conversation.id) || !getProject(db, conversation.projectId)) {
+      return sendApiError(res, 404, 'CONVERSATION_NOT_FOUND', 'conversation not found');
+    }
+    if (!await authorizeProjectRequest(req, res, conversation.projectId, { mode: 'read' })) return;
+    res.json({ conversation } satisfies ConversationResponse);
+  });
 
   app.get('/api/projects/:id/conversations', async (req, res) => {
     if (!getProject(db, req.params.id)) {
@@ -393,7 +403,7 @@ export function registerProjectConversationRoutes(app: Express, ctx: RegisterPro
     // A Full Plan turn spans several physical Runs and the daemon-issued
     // continuation carries no user prompt, so the client needs each message's
     // logical-task position to render one turn instead of an orphan answer.
-    const messages = listMessages(db, req.params.cid) as Array<Record<string, unknown>>;
+    const messages = listMessages(db, req.params.cid) as ChatMessage[];
     const turns = strategyTaskTurnsForRunIds(
       db,
       messages
@@ -401,21 +411,25 @@ export function registerProjectConversationRoutes(app: Express, ctx: RegisterPro
         .filter((runId): runId is string => typeof runId === 'string' && runId.length > 0),
       { projectId: req.params.id, conversationId: req.params.cid },
     );
-    res.json({
-      messages: messages.map((message) => {
-        const runId = typeof message['runId'] === 'string' ? message['runId'] : null;
-        const turn = runId ? turns.get(runId) : undefined;
-        if (!turn) return message;
-        return {
-          ...message,
-          strategyTaskExecutionId: turn.taskExecutionId,
-          strategyTaskRunIndex: turn.taskRunIndex,
-          strategyTaskDelivered: turn.delivered,
-          strategyTaskBlocked: turn.blocked,
-          strategyTaskBlockedText: turn.blockedText,
-        };
-      }),
+    const responseMessages = messages.map((message) => {
+      const runId = typeof message.runId === 'string' ? message.runId : null;
+      const turn = runId ? turns.get(runId) : undefined;
+      if (!turn) return message;
+      return {
+        ...message,
+        strategyTaskExecutionId: turn.taskExecutionId,
+        strategyTaskRunIndex: turn.taskRunIndex,
+        strategyTaskDelivered: turn.delivered,
+        strategyTaskBlocked: turn.blocked,
+        strategyTaskBlockedText: turn.blockedText,
+      };
     });
+    res.vary('Accept');
+    if (req.accepts(['application/json', MESSAGES_STREAM_CONTENT_TYPE]) === MESSAGES_STREAM_CONTENT_TYPE) {
+      await streamMessages(res, responseMessages);
+      return;
+    }
+    res.json({ messages: responseMessages });
   });
 
   // #6396: the daemon is the single writer of a daemon-backed assistant

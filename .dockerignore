@@ -18,3 +18,21 @@ deploy/**/*.tgz
 deploy/**/*.zip
 docs
 story
+
+# Local runtime, credentials and generated web output never enter the build context.
+.tmp
+.local
+.env
+.env.*
+**/.env
+**/.env.*
+.next
+out
+
+# Workspace packages must use Linux dependencies/output produced in this build.
+**/node_modules
+**/.next
+**/out
+**/dist
+**/coverage
+**/*.tsbuildinfo

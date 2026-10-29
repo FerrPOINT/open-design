@@ -191,6 +191,13 @@ async function* withStableInstallErrorCodes(
   }
 }
 
+/** Source paths are interpreted by the daemon's platform, never the remote client. */
+export function isLocalPluginSource(source: string, platform: NodeJS.Platform = process.platform): boolean {
+  const paths = platform === 'win32' ? path.win32 : path.posix;
+  return paths.isAbsolute(source) || source.startsWith('./') || source.startsWith('../') ||
+    source.startsWith('~') || (platform === 'win32' && (source.startsWith('.\\') || source.startsWith('..\\')));
+}
+
 // Top-level dispatcher. Picks the backend off the source string and yields
 // the same InstallEvent stream regardless of where the bytes came from.
 export async function* installPlugin(

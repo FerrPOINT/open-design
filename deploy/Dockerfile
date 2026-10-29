@@ -1,6 +1,12 @@
 ARG NODE_IMAGE=docker.io/library/node:24-alpine
 ARG RUNTIME_IMAGE=docker.io/library/node:24-alpine
 
+FROM ${NODE_IMAGE} AS agent-runtime
+COPY deploy/install-opencode.ts /tmp/install-opencode.ts
+RUN node /tmp/install-opencode.ts && \
+    mkdir /opencode && tar -xzf /tmp/opencode.tgz -C /opencode --strip-components=2 package/bin/opencode && \
+    chmod 755 /opencode/opencode && /opencode/opencode --version
+
 FROM ${NODE_IMAGE} AS build
 
 ARG HTTP_PROXY
@@ -17,6 +23,8 @@ ENV https_proxy=${https_proxy}
 ENV no_proxy=${no_proxy}
 ENV NO_PROXY=${NO_PROXY}
 ENV CI=true
+ENV ELECTRON_SKIP_BINARY_DOWNLOAD=1
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
 RUN apk add --no-cache python3 make g++
 
@@ -28,15 +36,26 @@ COPY packages ./packages
 COPY tools ./tools
 COPY apps/daemon/package.json ./apps/daemon/package.json
 COPY apps/web/package.json ./apps/web/package.json
+COPY apps/closure/package.json ./apps/closure/package.json
+COPY apps/desktop/package.json ./apps/desktop/package.json
+COPY apps/packaged/package.json ./apps/packaged/package.json
+COPY shells/terminal/package.json ./shells/terminal/package.json
 COPY e2e/package.json ./e2e/package.json
 RUN corepack enable && \
     corepack prepare pnpm@10.33.2 --activate && \
     pnpm install --frozen-lockfile
 
 COPY apps ./apps
-RUN pnpm --filter @open-design/daemon build && \
+# Web type checks import bundled plugin manifests.
+COPY plugins/_official ./plugins/_official
+COPY vendor ./apps/daemon/vendor
+# Shared-lockfile deployment preserves the exact graph, unlike legacy re-resolution.
+# pnpm resolves locked local tarballs relative to the deployment root. Include
+# the same verified vendor archive in the daemon payload before export.
+RUN node -e "const fs=require('node:fs');const p='apps/daemon/package.json';const m=JSON.parse(fs.readFileSync(p));m.files.push('vendor');fs.writeFileSync(p,JSON.stringify(m))" && \
+    pnpm --filter @open-design/daemon build && \
     pnpm --filter @open-design/web build && \
-    pnpm --filter @open-design/daemon deploy --legacy --prod /app/deploy/daemon && \
+    pnpm --config.inject-workspace-packages=true --filter @open-design/daemon deploy --prod /app/deploy/daemon && \
     pnpm store prune && \
     rm -rf \
       /root/.cache \
@@ -74,6 +93,7 @@ RUN pnpm --filter @open-design/daemon build && \
 # context, etc.).
 COPY skills ./skills
 COPY design-systems ./design-systems
+COPY design-templates ./design-templates
 COPY craft ./craft
 COPY prompt-templates ./prompt-templates
 COPY assets ./assets
@@ -82,9 +102,11 @@ COPY assets ./assets
 # image, `loadManifest()` returns `{}` and every plugin silently falls back to
 # the live-iframe preview path — the exact cost the bakes exist to avoid.
 COPY data ./data
-COPY plugins/_official ./plugins/_official
 
 FROM ${RUNTIME_IMAGE}
+ARG SOURCE_REVISION
+LABEL org.opencontainers.image.source="https://github.com/FerrPOINT/open-design"
+LABEL org.opencontainers.image.revision="${SOURCE_REVISION}"
 
 RUN apk add --no-cache tini poppler-utils bash git && \
     addgroup -S -g 1001 open-design && \
@@ -95,6 +117,7 @@ COPY --from=build --chown=open-design:open-design /app/deploy/daemon ./apps/daem
 COPY --from=build --chown=open-design:open-design /app/apps/web/out ./apps/web/out
 COPY --from=build --chown=open-design:open-design /app/skills ./skills
 COPY --from=build --chown=open-design:open-design /app/design-systems ./design-systems
+COPY --from=build --chown=open-design:open-design /app/design-templates ./design-templates
 COPY --from=build --chown=open-design:open-design /app/craft ./craft
 COPY --from=build --chown=open-design:open-design /app/prompt-templates ./prompt-templates
 COPY --from=build --chown=open-design:open-design /app/data ./data
@@ -108,7 +131,7 @@ COPY --from=build --chown=open-design:open-design /app/assets/community-pets ./a
 COPY --from=build --chown=open-design:open-design /app/plugins/_official ./plugins/_official
 
 RUN mkdir -p /app/.od && \
-    chown -R open-design:open-design /app
+    chown open-design:open-design /app/.od
 
 ENV NODE_ENV=production
 ENV NODE_OPTIONS=--max-old-space-size=192
@@ -118,5 +141,6 @@ ENV OD_PORT=7456
 EXPOSE 7456
 
 USER open-design
+COPY --from=agent-runtime /opencode/opencode /usr/local/bin/opencode
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["node", "apps/daemon/dist/cli.js", "--no-open"]

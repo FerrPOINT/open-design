@@ -24,6 +24,7 @@ export interface RegisterDaemonRoutesDeps {
   host: string;
   getResolvedPort: () => number;
   getDaemonShuttingDown: () => boolean;
+  inferenceStatus?: () => Promise<import('@open-design/contracts').PdlcInferenceStatus>;
   sandboxRuntime: {
     enabled: boolean;
     roots?: unknown;
@@ -39,6 +40,7 @@ export function registerDaemonRoutes(app: Express, deps: RegisterDaemonRoutesDep
     const versionInfo = await readCurrentAppVersionInfo();
     res.json({
       ok: true,
+      ...(deps.inferenceStatus ? { inference: await deps.inferenceStatus() } : {}),
       version: versionInfo.version,
       bindHost: host,
       port: deps.getResolvedPort(),
