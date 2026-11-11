@@ -518,7 +518,7 @@ import { applyOpenCodeEventPlugin } from './runtimes/opencode-event-plugin.js';
 import { createAgentStderrVisibilityFilter } from './amr-stderr-filter.js';
 import { createQoderStreamHandler } from './runtimes/qoder-stream.js';
 import { subscribe as subscribeFileEvents } from './project-watchers.js';
-import { importFigmaFromBytes } from './figma/figma-import.js';
+import { registerFigmaRoutes } from './routes/project/figma.js';
 import { renderDesignSystemPreview } from './design-systems/preview.js';
 import { renderDesignSystemShowcase } from './design-systems/showcase.js';
 import { createChatRunService } from './runtimes/runs.js';
@@ -2935,14 +2935,6 @@ const pluginUpload = multer({
     files: 500,
     fieldSize: 2 * 1024 * 1024,
   },
-});
-
-// Figma `.fig` import — memory storage so the offline decoder gets the raw
-// bytes without a temp-file round-trip. The decoder unzips + kiwi-decodes
-// in-process and writes the snapshot under the project cwd.
-const figmaUpload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 200 * 1024 * 1024 },  // community kits run large
 });
 
 const pluginShareTaskStore = createPluginShareTaskStore({
@@ -9147,55 +9139,11 @@ export async function startServer({
     fetchProjectCreationWorkspaceDirectory,
     enforceWorkspaceProjectMutation: enforceAuthoritativeProjectMutation,
   });
-  app.post('/api/projects/:id/figma/import', (req, res) => {
-    figmaUpload.single('file')(req, res, async (err) => {
-      if (err) return sendMulterError(res, err);
-      try {
-        const project = getProject(db, req.params.id);
-        if (!project) return sendApiError(res, 404, 'PROJECT_NOT_FOUND', 'project not found');
-        if (!await enforceAuthoritativeProjectMutation(
-          req,
-          res,
-          sendApiError,
-          getWorkspaceProject,
-          getWorkspaceProjectByProjectId,
-          db,
-          project.id,
-          'writeFiles',
-        )) return;
-
-        const body = req.body && typeof req.body === 'object' ? req.body : {};
-        const figmaUrl = typeof body.figmaUrl === 'string' ? body.figmaUrl.trim() : '';
-        if (!req.file) {
-          if (figmaUrl) {
-            return sendApiError(
-              res,
-              409,
-              'FIGMA_URL_NEEDS_MIGRATION',
-              'Figma URL imports must run through the Figma migration flow.',
-              { details: { figmaUrl } },
-            );
-          }
-          return sendApiError(res, 400, 'BAD_REQUEST', 'file is required');
-        }
-
-        const projectRoot = resolveProjectDir(PROJECTS_DIR, req.params.id, project.metadata);
-        const notes = typeof body.notes === 'string' ? body.notes : undefined;
-        const result = await importFigmaFromBytes(req.file.buffer, {
-          cwd: projectRoot,
-          label: decodeMultipartFilename(req.file.originalname || 'figma-import.fig'),
-          notes,
-        });
-        return res.json(result);
-      } catch (caught) {
-        return sendApiError(
-          res,
-          400,
-          'FIGMA_IMPORT_FAILED',
-          caught instanceof Error ? caught.message : String(caught),
-        );
-      }
-    });
+  registerFigmaRoutes(app, {
+    db,
+    http: httpDeps,
+    paths: pathDeps,
+    authorizeProjectRequest,
   });
   registerSocialShareRoutes(app, { http: httpDeps });
   const projectCreatePreparationTimeoutMs = projectCreatePreparationTimeoutMsFromEnv();
