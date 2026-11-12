@@ -23,12 +23,6 @@ async function runPython(script: string, ...args: string[]) {
 }
 
 describe('exact release scripts', () => {
-  it('derives publication time from the immutable source commit', async () => {
-    const workflow = await readFile(resolve('../.github/workflows/release-exact.yml'), 'utf8');
-    expect(workflow).toContain("subprocess.check_output(['git', 'show', '--no-patch', '--format=%cI', os.environ['SOURCE_SHA']]");
-    expect(workflow).not.toContain('datetime.now');
-  });
-
   it('rejects a reused Terminal scene for a different standalone version', async () => {
     const root = await mkdtemp(join(tmpdir(), 'exact-pack-version-'));
     roots.push(root);

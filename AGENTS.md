@@ -49,7 +49,7 @@ This file is the single source of truth for agents entering this repository. Rea
 ## Local validation scope
 
 - Run focused tests for changed files and affected integration boundaries.
-- Do not run full daemon or web suites locally unless explicitly requested by the user. This also applies to final regression; full suites run in PR CI.
+- Do not run full daemon or web suites locally unless explicitly requested by the user. This also applies to final regression; full suites run at an explicitly requested integrated local/Forge gate.
 - Run `pnpm guard` and `pnpm typecheck` before publication. If CI fails, investigate the failing lane and rerun the relevant focused tests.
 
 ## PDLC integration boundary
@@ -161,14 +161,10 @@ obvious, block the PR and request core-maintainer guidance.
 
 ## GitHub automation boundary
 
-Read `.github/AGENTS.md` before editing `.github/workflows/`, `.github/scripts/`, `.github/actions/`, PR follow-on automation, `workflow_run` trusted writes, CI handoff artifacts, or the workflow topology checks that guard those surfaces.
-
-CI-related GitHub automation uses a two-layer architecture:
-
-- Business layer workflows own product or validation decisions. `ci.yml` is the main low-privilege PR, merge-queue, and manual validation workflow. It detects scope, runs checks, and produces typed handoff artifacts.
-- Atomic capability workflows own reusable trusted operations. `comment.atom.yml` publishes pure text PR comments, `autofix.atom.yml` applies same-repository patches, and `report.atom.yml` materializes advanced comments that need trusted dependencies, secrets, or report generation before upsert.
-
-Do not add a new business-named follow-on workflow such as `foo.comment.atom.yml` or `bar.autofix.atom.yml` without first trying to express the flow as a `ci.yml` producer plus the existing `comment`, `autofix`, or `report` capability. Keep artifact naming, storage layout, and parser behavior centralized in `.github/scripts/handoff.py`; do not let individual workflows invent parallel handoff conventions.
+This PDLC fork does not use GitHub Actions. Do not restore `.github/workflows/`,
+composite Actions, or Actions dependency updates. Run the existing package/tool
+checks locally; release, security and data checks remain required.
+Read `.github/AGENTS.md` before changing retained build/release helpers there.
 
 ## CI test-set orchestration guidance
 
@@ -410,7 +406,6 @@ Before changing any prompt text — in any of those locations — read `docs/pro
   validation.
 - After package, workspace, or command-entry changes, run `pnpm install` so workspace links and generated dist entries stay fresh.
 - For agent-stream / parser changes (`apps/daemon/src/runtimes/claude-stream.ts`, `json-event-stream.ts`, `qoder-stream.ts`, etc.), replay a recorded session through the mock CLIs in `mocks/` to verify event shapes round-trip without burning provider budget. PATH-overlay activation: `export PATH="$PWD/mocks/bin:$PATH" OD_MOCKS_TRACE=<8-char-id> OD_MOCKS_NO_DELAY=1`. See `mocks/README.md` for the trace catalog and selection knobs.
-- Docker image smoke/publish lives only in `.github/workflows/docker-image.yml` and is outside the core `ci.yml` / `Validate workspace` / merge queue gate.
 - Before marking regular work ready, run at least `pnpm guard` and `pnpm typecheck`, plus the package-scoped tests/builds that match the files changed. Do not use or add root `pnpm test`/`pnpm build` aliases.
 - For local web runtime loops, prefer `pnpm tools-dev run web --daemon-port <port> --web-port <port>`.
 - For e2e tests that need a tools-dev daemon/web runtime, use the shared tools-dev harness under `e2e/lib/tools-dev/` and the framework suite adapters (`e2e/lib/playwright/suite.ts`, `e2e/lib/vitest/suite.ts`). Do not hand-spawn `tools-dev` from test cases or duplicate lifecycle helpers under framework-specific folders.

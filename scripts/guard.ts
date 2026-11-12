@@ -23,7 +23,6 @@ import {
 } from "./check-tokens-fixture-sync.ts";
 import { checkCraftReferences } from "./lint-craft-references.ts";
 import { checkWhatsNewDocument } from "./check-whats-new-document.ts";
-import { checkWhatsNewPublishWorkflow } from "./check-whats-new-publish-workflow.ts";
 import { collectCssHardcodedColorMatches, cssWideAndSpecialColorKeywords, realNamedColors } from "./style-policy.ts";
 import { checkScriptsLibraryArchitecture } from "./lib/guard/architecture.ts";
 import { pinnedBaseUiSpec } from "./lib/guard/base-ui-package.ts";
@@ -1517,6 +1516,20 @@ async function checkRunStartChokePoint(): Promise<boolean> {
   return true;
 }
 
+export async function checkNoHostedWorkflows(root: string = repoRoot): Promise<boolean> {
+  let files: string[];
+  try {
+    files = await readdir(path.join(root, ".github", "workflows"));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return true;
+    throw error;
+  }
+  const workflows = files.filter((file) => /\.ya?ml$/i.test(file));
+  if (workflows.length === 0) return true;
+  console.error(`GitHub Actions are not used in this fork: ${workflows.join(", ")}`);
+  return false;
+}
+
 const checks: GuardCheck[] = [
   { name: "residual JavaScript", run: checkResidualJavaScript },
   { name: "root package-manager lockfile", run: ({ repoRoot: root }) => checkRootPackageManagerLockfiles(root) },
@@ -1536,7 +1549,7 @@ const checks: GuardCheck[] = [
   { name: "style policy", run: checkStylePolicy },
   { name: "craft references", run: checkCraftReferences },
   { name: "what's new document", run: ({ repoRoot: root }) => checkWhatsNewDocument(root) },
-  { name: "what's new publish workflow", run: ({ repoRoot: root }) => checkWhatsNewPublishWorkflow(root) },
+  { name: "no GitHub Actions workflows", run: ({ repoRoot: root }) => checkNoHostedWorkflows(root) },
   { name: "HTML plugin preview contracts", run: ({ repoRoot: root }) => checkHtmlPluginPreviewContracts(root) },
   { name: "plugin preview manifest", run: checkPluginPreviewManifest },
   { name: "design system manifests", run: checkDesignSystemManifests },

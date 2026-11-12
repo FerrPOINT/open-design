@@ -347,28 +347,6 @@ describe("cut-patch-release pre-flight", () => {
   });
 });
 
-describe("cut-patch-release workflow wiring", () => {
-  it("[P2] runs the extracted pre-flight instead of inline gate shell", async () => {
-    const [workflow, script] = await Promise.all([
-      readFile(join(workspaceRoot, ".github", "workflows", "cut-patch-release.yml"), "utf8"),
-      readFile(scriptPath, "utf8"),
-    ]);
-
-    expect(workflow).toContain(
-      "run: node --experimental-strip-types .github/scripts/release/resolve-patch-cut.ts resolve",
-    );
-    expect(workflow).toContain(
-      "run: node --experimental-strip-types .github/scripts/release/resolve-patch-cut.ts gate",
-    );
-    expect(workflow).toContain("GATE_TAG: ${{ steps.ver.outputs.gate_tag }}");
-    // The publish test itself stays gh's, not ours.
-    expect(script).toContain('"(.isDraft or .isPrerelease) | not"');
-    // No second copy of the version/gate math left behind in YAML.
-    expect(workflow).not.toContain("MINOR_BASE");
-    expect(workflow).not.toContain("git ls-remote --heads origin 'release/v*'");
-  });
-});
-
 // A guard against the scratch helper quietly not working: if the stub `gh` were
 // unreachable the suite above would read "not published" everywhere and look
 // like a passing, permanently-closed gate.
