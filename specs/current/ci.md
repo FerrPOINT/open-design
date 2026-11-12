@@ -1,3 +1,5 @@
+> Hosted GitHub topology below is an upstream reference. This PDLC fork has no GitHub Actions workflows; use local package/tool gates.
+
 # CI orchestration evolution
 
 This document is the current authority for how this repository evolves CI

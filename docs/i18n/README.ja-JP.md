@@ -640,13 +640,6 @@ gh pr create --fill
 
 ---
 
-## リポジトリのアクティビティ
-
-<picture>
-  <img alt="OpenDesign — repository metrics" src="https://repo-assets.open-design.ai/resources/images/github-metrics.svg" />
-</picture>
-
-上の SVG は、[`lowlighter/metrics`](https://github.com/lowlighter/metrics) を使って [`.github/workflows/metrics.yml`](../../.github/workflows/metrics.yml) によって毎日再生成されます。
 
 ---
 

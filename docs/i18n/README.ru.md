@@ -662,13 +662,6 @@ gh pr create --fill
 
 ---
 
-## Активность репозитория
-
-<picture>
-  <img alt="OpenDesign — метрики репозитория" src="https://repo-assets.open-design.ai/resources/images/github-metrics.svg" />
-</picture>
-
-SVG выше регенерируется ежедневно через [`.github/workflows/metrics.yml`](../../.github/workflows/metrics.yml) с помощью [`lowlighter/metrics`](https://github.com/lowlighter/metrics).
 
 ---
 

@@ -640,13 +640,6 @@ gh pr create --fill
 
 ---
 
-## Активність репозиторію
-
-<picture>
-  <img alt="OpenDesign — repository metrics" src="https://repo-assets.open-design.ai/resources/images/github-metrics.svg" />
-</picture>
-
-SVG вище щодня перегенеровується [`.github/workflows/metrics.yml`](../../.github/workflows/metrics.yml) за допомогою [`lowlighter/metrics`](https://github.com/lowlighter/metrics).
 
 ---
 

@@ -248,17 +248,4 @@ describe("workflow scope planner", () => {
     expect(plan("pr", ["apps/daemon/src/server.ts"]).trace.uiP0Shadow.mode).toBe("full-fallback");
   });
 
-  test("configuration remains a Linux workflow-control contract", () => {
-    const workflow = readFileSync(path.join(repoRoot, ".github/workflows/ci.yml"), "utf8");
-    expect(workflow).toContain("python3 .github/scripts/scopes.py github-output");
-    expect(workflow).not.toContain("scripts/scopes.ts");
-    expect(workflow).toContain("  ui_p0:\n    name: ${{ matrix.name }}");
-    expect(workflow).not.toContain("name: UI P0 (${{ matrix.name }})");
-    const windowsPayload = workflow.slice(
-      workflow.indexOf("  windows_tools_pack_payload_tests:"),
-      workflow.indexOf("  web_workspace_tests:"),
-    );
-    expect(windowsPayload).not.toMatch(/\.github\/scripts\/(?:scopes|convergence|runners)\.py/);
-    expect(workflow).not.toContain("  terminal_scene:");
-  });
 });
